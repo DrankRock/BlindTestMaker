@@ -191,8 +191,9 @@ public partial class DashboardViewModel : ViewModelBase
 
             // Process individual queries
             var queryResults = new List<QueryResult>();
-            foreach (var (i, query) in queries.Index())
+            for (int i = 0; i < queries.Length; i++)
             {
+                var query = queries[i]; // Get the current query using the index
                 try
                 {
                     queryResults.Add(await resolver.ResolveAsync(query));
