@@ -65,6 +65,7 @@ public partial class DashboardViewModel : ViewModelBase
     [NotifyCanExecuteChangedFor(nameof(ProcessQueryCommand))]
     [NotifyCanExecuteChangedFor(nameof(ShowAuthSetupCommand))]
     [NotifyCanExecuteChangedFor(nameof(ShowSettingsCommand))]
+    [NotifyCanExecuteChangedFor(nameof(GenerateVideoCommand))]
     public partial bool IsBusy { get; set; }
 
     public ProgressContainer<Percentage> Progress { get; } = new();
@@ -356,6 +357,17 @@ public partial class DashboardViewModel : ViewModelBase
     {
         foreach (var download in Downloads)
             download.CancelCommand.Execute(null);
+    }
+
+    // ADDED: GenerateVideoCommand (empty for now)
+    private bool CanGenerateVideo() => !IsBusy && Downloads.Any(); // Example: enable if not busy and there are downloads
+
+    [RelayCommand(CanExecute = nameof(CanGenerateVideo))]
+    private void GenerateVideo()
+    {
+        // This function is intentionally empty for now.
+        // Logic for "Generate Video" will be implemented here.
+        _snackbarManager.Notify("Generate Video feature is not yet implemented.");
     }
 
     protected override void Dispose(bool disposing)

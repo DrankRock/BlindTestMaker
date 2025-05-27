@@ -13,6 +13,7 @@ using YoutubeDownloader.Utils;
 using YoutubeDownloader.Utils.Extensions;
 using YoutubeDownloader.ViewModels.Components;
 using YoutubeExplode.Videos;
+using YoutubeExplode.Videos.Streams;
 
 namespace YoutubeDownloader.ViewModels.Dialogs;
 
@@ -34,9 +35,22 @@ public partial class DownloadSingleSetupViewModel(
     [RelayCommand]
     private void Initialize()
     {
-        SelectedDownloadOption = AvailableDownloadOptions?.FirstOrDefault(o =>
-            o.Container == settingsService.LastContainer
+        // First, try to find an MP3 audio-only option (default preference)
+        var mp3Option = AvailableDownloadOptions?.FirstOrDefault(o =>
+            o.IsAudioOnly && o.Container == Container.Mp3
         );
+
+        if (mp3Option is not null)
+        {
+            SelectedDownloadOption = mp3Option;
+        }
+        else
+        {
+            // Fallback to the original behavior using last used container
+            SelectedDownloadOption = AvailableDownloadOptions?.FirstOrDefault(o =>
+                o.Container == settingsService.LastContainer
+            );
+        }
     }
 
     [RelayCommand]

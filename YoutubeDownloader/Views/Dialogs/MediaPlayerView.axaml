@@ -1,0 +1,125 @@
+<UserControl
+    x:Class="YoutubeDownloader.Views.Dialogs.MediaPlayerView"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:dialogs="clr-namespace:YoutubeDownloader.ViewModels.Dialogs"
+    xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+    xmlns:materialAssists="clr-namespace:Material.Styles.Assists;assembly=Material.Styles"
+    x:Name="UserControl"
+    Width="600"
+    Height="400"
+    x:DataType="dialogs:MediaPlayerViewModel">
+	<Grid RowDefinitions="Auto,*,Auto,Auto">
+		<!-- Title -->
+		<TextBlock
+            Grid.Row="0"
+            Margin="16"
+            FontSize="19"
+            Text="{Binding Title}"
+            TextTrimming="CharacterEllipsis"
+            ToolTip.Tip="{Binding Title}" />
+
+		<!-- Player Content -->
+		<Border
+            Grid.Row="1"
+            Margin="16,0,16,16"
+            Background="{DynamicResource MaterialDarkBackgroundBrush}"
+            CornerRadius="4">
+			<Grid>
+				<!-- Play/Pause Button in Center -->
+				<Button
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Width="80"
+                    Height="80"
+                    Command="{Binding PlayPauseCommand}"
+                    Theme="{DynamicResource MaterialFlatButton}">
+					<materialIcons:MaterialIcon
+                        x:Name="PlayPauseIcon"
+                        Width="60"
+                        Height="60"
+                        Classes.playing="{Binding IsPlaying}">
+						<materialIcons:MaterialIcon.Styles>
+							<Style Selector="materialIcons|MaterialIcon">
+								<Setter Property="Kind" Value="PlayArrow" />
+								<Style Selector="^.playing">
+									<Setter Property="Kind" Value="Pause" />
+								</Style>
+							</Style>
+						</materialIcons:MaterialIcon.Styles>
+					</materialIcons:MaterialIcon>
+				</Button>
+			</Grid>
+		</Border>
+
+		<!-- Controls -->
+		<StackPanel Grid.Row="2" Margin="16,0">
+			<!-- Time Display and Slider -->
+			<Grid ColumnDefinitions="Auto,*,Auto">
+				<TextBlock
+                    Grid.Column="0"
+                    Margin="0,0,8,0"
+                    VerticalAlignment="Center"
+                    Text="{Binding CurrentTimeText}" />
+
+				<Slider
+                    x:Name="PositionSlider"
+                    Grid.Column="1"
+                    Minimum="0"
+                    Maximum="{Binding Duration}"
+                    Value="{Binding CurrentPosition}"
+                    IsSnapToTickEnabled="False"
+                    TickFrequency="1"
+                    Margin="0,0,8,0"
+                    PointerReleased="PositionSlider_OnPointerReleased">
+					<Slider.Styles>
+						<Style Selector="Slider:pointerover /template/ Thumb">
+							<Setter Property="Cursor" Value="Hand" />
+						</Style>
+					</Slider.Styles>
+				</Slider>
+
+				<TextBlock
+                    Grid.Column="2"
+                    VerticalAlignment="Center"
+                    Text="{Binding DurationText}" />
+			</Grid>
+
+			<!-- Duration Input -->
+			<Grid ColumnDefinitions="Auto,*,Auto" Margin="0,16,0,0">
+				<TextBlock
+                    Grid.Column="0"
+                    Margin="0,0,8,0"
+                    VerticalAlignment="Center"
+                    Text="Duration (seconds):" />
+
+				<TextBox
+                    Grid.Column="1"
+                    Margin="0,0,8,0"
+                    Text="{Binding Duration}"
+                    Watermark="Enter duration in seconds"
+                    materialAssists:TextFieldAssist.Label="Max Duration" />
+
+				<Button
+                    Grid.Column="2"
+                    Command="{Binding ApplyDurationCommand}"
+                    Content="APPLY DURATION"
+                    Theme="{DynamicResource MaterialFlatButton}" />
+			</Grid>
+		</StackPanel>
+
+		<!-- Dialog Buttons -->
+		<StackPanel
+            Grid.Row="3"
+            Margin="16"
+            HorizontalAlignment="Right"
+            Orientation="Horizontal">
+			<Button
+                Margin="0,0,8,0"
+                Command="{Binding CancelCommand}"
+                Content="CLOSE"
+                IsCancel="True"
+                Theme="{DynamicResource MaterialOutlineButton}" />
+		</StackPanel>
+	</Grid>
+</UserControl>

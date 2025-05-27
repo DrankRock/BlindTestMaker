@@ -10,6 +10,7 @@ using YoutubeDownloader.Core.Downloading;
 using YoutubeDownloader.Framework;
 using YoutubeDownloader.Utils;
 using YoutubeDownloader.Utils.Extensions;
+using YoutubeDownloader.ViewModels.Dialogs;
 using YoutubeExplode.Videos;
 
 namespace YoutubeDownloader.ViewModels.Components;
@@ -47,6 +48,9 @@ public partial class DownloadViewModel : ViewModelBase
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(CopyErrorMessageCommand))]
     public partial string? ErrorMessage { get; set; }
+
+    [ObservableProperty]
+    public partial double? Duration { get; set; }
 
     public DownloadViewModel(ViewModelManager viewModelManager, DialogManager dialogManager)
     {
@@ -116,12 +120,32 @@ public partial class DownloadViewModel : ViewModelBase
 
         try
         {
-            ProcessEx.StartShellExecute(FilePath);
+            // Check if the file is MP3
+            if (FilePath.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase))
+            {
+                // Open custom media player dialog
+                var dialog = new MediaPlayerViewModel(FilePath, this);
+                var result = await _dialogManager.ShowDialogAsync(dialog);
+
+                // Result will be the new duration if user clicked "Apply Duration"
+                if (result.HasValue)
+                {
+                    Duration = result.Value;
+                }
+            }
+            else
+            {
+                // For non-MP3 files, use the default system player
+                ProcessEx.StartShellExecute(FilePath);
+            }
         }
         catch (Exception ex)
         {
             await _dialogManager.ShowDialogAsync(
-                _viewModelManager.CreateMessageBoxViewModel("Error", ex.Message)
+                _viewModelManager.CreateMessageBoxViewModel(
+                    "Error",
+                    $"Error opening file: {ex.Message}"
+                )
             );
         }
     }

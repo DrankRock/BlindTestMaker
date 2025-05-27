@@ -50,6 +50,11 @@ public class ViewModelManager(IServiceProvider services)
         return viewModel;
     }
 
+    public MediaPlayerViewModel CreateMediaPlayerViewModel(
+        string filePath,
+        DownloadViewModel downloadViewModel
+    ) => new(filePath, downloadViewModel);
+
     public DownloadMultipleSetupViewModel CreateDownloadMultipleSetupViewModel(
         string title,
         IReadOnlyList<IVideo> availableVideos,
