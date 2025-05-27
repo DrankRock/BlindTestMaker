@@ -21,6 +21,7 @@ public partial class ViewManager
             DownloadSingleSetupViewModel => new DownloadSingleSetupView(),
             MessageBoxViewModel => new MessageBoxView(),
             SettingsViewModel => new SettingsView(),
+            MediaPlayerViewModel => new MediaPlayerView(),
             _ => null,
         };
 
