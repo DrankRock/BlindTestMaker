@@ -1,5 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Threading.Tasks;
+using CommunityToolkit.Mvvm.Input;
 using YoutubeDownloader.Framework;
 using YoutubeDownloader.Services;
 using YoutubeDownloader.Utils;
@@ -7,16 +10,22 @@ using YoutubeDownloader.Utils.Extensions;
 
 namespace YoutubeDownloader.ViewModels.Dialogs;
 
-public class SettingsViewModel : DialogViewModelBase
+public partial class SettingsViewModel : DialogViewModelBase
 {
     private readonly SettingsService _settingsService;
-
+    private readonly ViewModelManager _viewModelManager;
+    private readonly DialogManager _dialogManager;
     private readonly DisposableCollector _eventRoot = new();
 
-    public SettingsViewModel(SettingsService settingsService)
+    public SettingsViewModel(
+        SettingsService settingsService,
+        ViewModelManager viewModelManager,
+        DialogManager dialogManager
+    )
     {
         _settingsService = settingsService;
-
+        _viewModelManager = viewModelManager;
+        _dialogManager = dialogManager;
         _eventRoot.Add(_settingsService.WatchAllProperties(OnAllPropertiesChanged));
     }
 
@@ -76,13 +85,73 @@ public class SettingsViewModel : DialogViewModelBase
         set => _settingsService.ParallelLimit = Math.Clamp(value, 1, 10);
     }
 
+    // Working Directory property
+    public string WorkingDirectory
+    {
+        get => _settingsService.LastWorkingDirectory ?? string.Empty;
+        set
+        {
+            if (_settingsService.LastWorkingDirectory != value)
+            {
+                _settingsService.LastWorkingDirectory = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    // Command to browse for working directory - USING THE ACTUAL FOLDER PICKER
+    [RelayCommand]
+    private async Task BrowseWorkingDirectoryAsync()
+    {
+        try
+        {
+            var selectedDirectory = await _dialogManager.ShowFolderPickerAsync(
+                "Select Working Directory",
+                WorkingDirectory ?? ""
+            );
+
+            if (!string.IsNullOrEmpty(selectedDirectory))
+            {
+                WorkingDirectory = selectedDirectory;
+                _settingsService.Save();
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error browsing for directory: {ex.Message}");
+        }
+    }
+
+    // Command to open working directory in file explorer
+    [RelayCommand]
+    private void OpenWorkingDirectory()
+    {
+        try
+        {
+            if (!string.IsNullOrEmpty(WorkingDirectory) && Directory.Exists(WorkingDirectory))
+            {
+                System.Diagnostics.Process.Start(
+                    new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = WorkingDirectory,
+                        UseShellExecute = true,
+                        Verb = "open",
+                    }
+                );
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error opening directory: {ex.Message}");
+        }
+    }
+
     protected override void Dispose(bool disposing)
     {
         if (disposing)
         {
             _eventRoot.Dispose();
         }
-
         base.Dispose(disposing);
     }
 }
