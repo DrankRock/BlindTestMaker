@@ -22,6 +22,8 @@ public partial class ViewManager
             MessageBoxViewModel => new MessageBoxView(),
             SettingsViewModel => new SettingsView(),
             MediaPlayerViewModel => new MediaPlayerView(),
+            ConfirmationDialogViewModel => new ConfirmDialogView(),
+            WorkingDirectoryDialogViewModel => new WorkingDirectoryDialogView(),
             _ => null,
         };
 
@@ -30,9 +32,7 @@ public partial class ViewManager
         var view = TryCreateView(viewModel);
         if (view is null)
             return null;
-
         view.DataContext ??= viewModel;
-
         return view;
     }
 }

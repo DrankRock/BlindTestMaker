@@ -1,4 +1,6 @@
+using System.Threading.Tasks;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using YoutubeDownloader.Framework;
@@ -11,12 +13,21 @@ public partial class DashboardView : UserControl<DashboardViewModel>
     public DashboardView()
     {
         InitializeComponent();
-
         // Bind the event with the tunnel strategy to handle keys that take part in writing text
         QueryTextBox.AddHandler(KeyDownEvent, QueryTextBox_OnKeyDown, RoutingStrategies.Tunnel);
     }
 
-    private void UserControl_OnLoaded(object? sender, RoutedEventArgs args) => QueryTextBox.Focus();
+    private async void UserControl_OnLoaded(object? sender, RoutedEventArgs args)
+    {
+        // Focus the query textbox
+        QueryTextBox.Focus();
+
+        // If ViewModel is available, prompt for working directory
+        if (DataContext is DashboardViewModel viewModel)
+        {
+            await viewModel.PromptForWorkingDirectoryAsync();
+        }
+    }
 
     private void QueryTextBox_OnKeyDown(object? sender, KeyEventArgs args)
     {

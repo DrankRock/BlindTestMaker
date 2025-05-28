@@ -27,11 +27,9 @@ public class ViewModelManager(IServiceProvider services)
     )
     {
         var viewModel = services.GetRequiredService<DownloadViewModel>();
-
         viewModel.Video = video;
         viewModel.DownloadOption = downloadOption;
         viewModel.FilePath = filePath;
-
         return viewModel;
     }
 
@@ -42,11 +40,9 @@ public class ViewModelManager(IServiceProvider services)
     )
     {
         var viewModel = services.GetRequiredService<DownloadViewModel>();
-
         viewModel.Video = video;
         viewModel.DownloadPreference = downloadPreference;
         viewModel.FilePath = filePath;
-
         return viewModel;
     }
 
@@ -62,13 +58,10 @@ public class ViewModelManager(IServiceProvider services)
     )
     {
         var viewModel = services.GetRequiredService<DownloadMultipleSetupViewModel>();
-
         viewModel.Title = title;
         viewModel.AvailableVideos = availableVideos;
-
         if (preselectVideos)
             viewModel.SelectedVideos.AddRange(availableVideos);
-
         return viewModel;
     }
 
@@ -78,10 +71,8 @@ public class ViewModelManager(IServiceProvider services)
     )
     {
         var viewModel = services.GetRequiredService<DownloadSingleSetupViewModel>();
-
         viewModel.Video = video;
         viewModel.AvailableDownloadOptions = availableDownloadOptions;
-
         return viewModel;
     }
 
@@ -93,12 +84,10 @@ public class ViewModelManager(IServiceProvider services)
     )
     {
         var viewModel = services.GetRequiredService<MessageBoxViewModel>();
-
         viewModel.Title = title;
         viewModel.Message = message;
         viewModel.DefaultButtonText = okButtonText;
         viewModel.CancelButtonText = cancelButtonText;
-
         return viewModel;
     }
 
@@ -107,4 +96,47 @@ public class ViewModelManager(IServiceProvider services)
 
     public SettingsViewModel CreateSettingsViewModel() =>
         services.GetRequiredService<SettingsViewModel>();
+
+    /// <summary>
+    /// Creates a confirmation dialog view model with Yes/No buttons
+    /// </summary>
+    /// <param name="title">Dialog title</param>
+    /// <param name="message">Dialog message</param>
+    /// <param name="yesButtonText">Text for the confirm/yes button</param>
+    /// <param name="noButtonText">Text for the cancel/no button</param>
+    /// <returns>A configured confirmation dialog view model</returns>
+    public ConfirmationDialogViewModel CreateConfirmationViewModel(
+        string title,
+        string message,
+        string yesButtonText = "YES",
+        string noButtonText = "NO"
+    )
+    {
+        var viewModel = services.GetRequiredService<ConfirmationDialogViewModel>();
+        viewModel.Title = title;
+        viewModel.Message = message;
+        viewModel.ConfirmButtonText = yesButtonText;
+        viewModel.CancelButtonText = noButtonText;
+        return viewModel;
+    }
+
+    /// <summary>
+    /// Creates a working directory selection dialog view model
+    /// </summary>
+    /// <param name="title">Dialog title</param>
+    /// <param name="message">Dialog message</param>
+    /// <param name="initialDirectory">Initial directory path</param>
+    /// <returns>A configured working directory selection dialog view model</returns>
+    public WorkingDirectoryDialogViewModel CreateWorkingDirectoryDialogViewModel(
+        string title = "Select Working Directory",
+        string message = "Choose a directory where MP3 files will be saved:",
+        string? initialDirectory = null
+    )
+    {
+        var viewModel = services.GetRequiredService<WorkingDirectoryDialogViewModel>();
+        viewModel.Title = title;
+        viewModel.Message = message;
+        viewModel.InitialDirectory = initialDirectory;
+        return viewModel;
+    }
 }

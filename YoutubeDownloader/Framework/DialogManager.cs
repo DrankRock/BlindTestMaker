@@ -27,7 +27,6 @@ public class DialogManager : IDisposable
                 async (object _, DialogOpenedEventArgs args) =>
                 {
                     await dialog.WaitForCloseAsync();
-
                     try
                     {
                         args.Session.Close();
@@ -38,7 +37,6 @@ public class DialogManager : IDisposable
                     }
                 }
             );
-
             return dialog.DialogResult;
         }
         finally
@@ -55,7 +53,6 @@ public class DialogManager : IDisposable
         var topLevel =
             Application.Current?.ApplicationLifetime?.TryGetTopLevel()
             ?? throw new ApplicationException("Could not find the top-level visual element.");
-
         var file = await topLevel.StorageProvider.SaveFilePickerAsync(
             new FilePickerSaveOptions
             {
@@ -64,7 +61,6 @@ public class DialogManager : IDisposable
                 DefaultExtension = Path.GetExtension(defaultFilePath).TrimStart('.'),
             }
         );
-
         return file?.Path.LocalPath;
     }
 
@@ -73,11 +69,9 @@ public class DialogManager : IDisposable
         var topLevel =
             Application.Current?.ApplicationLifetime?.TryGetTopLevel()
             ?? throw new ApplicationException("Could not find the top-level visual element.");
-
         var startLocation = await topLevel.StorageProvider.TryGetFolderFromPathAsync(
             defaultDirPath
         );
-
         var folderPickResult = await topLevel.StorageProvider.OpenFolderPickerAsync(
             new FolderPickerOpenOptions
             {
@@ -85,8 +79,82 @@ public class DialogManager : IDisposable
                 SuggestedStartLocation = startLocation,
             }
         );
-
         return folderPickResult.FirstOrDefault()?.Path.LocalPath;
+    }
+
+    /// <summary>
+    /// Shows a folder picker dialog to select a working directory, with custom title and description.
+    /// </summary>
+    /// <param name="title">The title for the folder picker dialog</param>
+    /// <param name="defaultDirPath">The default directory path to start in</param>
+    /// <returns>The selected folder path or null if canceled</returns>
+    public async Task<string?> ShowFolderPickerAsync(string title, string defaultDirPath = "")
+    {
+        var topLevel =
+            Application.Current?.ApplicationLifetime?.TryGetTopLevel()
+            ?? throw new ApplicationException("Could not find the top-level visual element.");
+
+        // Try to get the folder from the default path if provided
+        IStorageFolder? startLocation = null;
+        if (!string.IsNullOrEmpty(defaultDirPath) && Directory.Exists(defaultDirPath))
+        {
+            startLocation = await topLevel.StorageProvider.TryGetFolderFromPathAsync(
+                defaultDirPath
+            );
+        }
+
+        // Create folder picker options
+        var options = new FolderPickerOpenOptions
+        {
+            AllowMultiple = false,
+            Title = title,
+            SuggestedStartLocation = startLocation,
+        };
+
+        // Open the folder picker
+        var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(options);
+
+        // Return the first folder's path or null if none was selected
+        return folders.FirstOrDefault()?.Path.LocalPath;
+    }
+
+    /// <summary>
+    /// Creates a specified directory if it doesn't already exist
+    /// </summary>
+    /// <param name="directoryPath">Path to create</param>
+    /// <returns>True if the directory was created or already exists</returns>
+    public bool EnsureDirectoryExists(string directoryPath)
+    {
+        try
+        {
+            if (!Directory.Exists(directoryPath))
+            {
+                Directory.CreateDirectory(directoryPath);
+            }
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Shows a confirmation dialog with Yes/No options
+    /// </summary>
+    /// <param name="title">Dialog title</param>
+    /// <param name="message">Dialog message</param>
+    /// <param name="viewModelManager">View model manager instance</param>
+    /// <returns>True if confirmed, false otherwise</returns>
+    public async Task<bool> ShowConfirmationDialogAsync(
+        string title,
+        string message,
+        ViewModelManager viewModelManager
+    )
+    {
+        var dialog = viewModelManager.CreateConfirmationViewModel(title, message);
+        var result = await ShowDialogAsync(dialog);
+        return result == true;
     }
 
     public void Dispose() => _dialogLock.Dispose();

@@ -60,6 +60,10 @@ public partial class SettingsService()
     public partial VideoQualityPreference LastVideoQualityPreference { get; set; } =
         VideoQualityPreference.Highest;
 
+    // Add property for the working directory
+    [ObservableProperty]
+    public partial string? LastWorkingDirectory { get; set; }
+
     public override void Save()
     {
         // Clear the cookies if they are not supposed to be persisted

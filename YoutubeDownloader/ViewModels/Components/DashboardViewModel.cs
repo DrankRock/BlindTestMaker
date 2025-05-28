@@ -8,6 +8,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Gress;
 using Gress.Completable;
+using WebKit;
 using YoutubeDownloader.Core.Downloading;
 using YoutubeDownloader.Core.Resolving;
 using YoutubeDownloader.Core.Tagging;
@@ -15,6 +16,7 @@ using YoutubeDownloader.Framework;
 using YoutubeDownloader.Services;
 using YoutubeDownloader.Utils;
 using YoutubeDownloader.Utils.Extensions;
+using YoutubeExplode.Common;
 using YoutubeExplode.Exceptions;
 
 namespace YoutubeDownloader.ViewModels.Components;
@@ -75,6 +77,10 @@ public partial class DashboardViewModel : ViewModelBase
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ProcessQueryCommand))]
     public partial string? Query { get; set; }
+
+    [ObservableProperty]
+    private string? _workingDirectory;
+    public ObservableCollection<DownloadViewModel> ExistingMp3Files { get; } = [];
 
     public ObservableCollection<DownloadViewModel> Downloads { get; } = [];
 
@@ -233,7 +239,22 @@ public partial class DashboardViewModel : ViewModelBase
                 if (download is null)
                     return;
 
-                EnqueueDownload(download);
+                if (download is not null)
+                {
+                    // Set file path to be in working directory if set
+                    if (!string.IsNullOrEmpty(WorkingDirectory))
+                    {
+                        var originalFilePath = download.FilePath;
+                        if (originalFilePath != null)
+                        {
+                            var fileName = Path.GetFileName(originalFilePath);
+                            download.FilePath = Path.Combine(WorkingDirectory, fileName);
+                        }
+                    }
+
+                    EnqueueDownload(download);
+                    Query = "";
+                }
 
                 Query = "";
             }
@@ -255,7 +276,24 @@ public partial class DashboardViewModel : ViewModelBase
                     return;
 
                 foreach (var download in downloads)
-                    EnqueueDownload(download);
+                {
+                    if (download is not null)
+                    {
+                        // Set file path to be in working directory if set
+                        if (!string.IsNullOrEmpty(WorkingDirectory))
+                        {
+                            var originalFilePath = download.FilePath;
+                            if (originalFilePath != null)
+                            {
+                                var fileName = Path.GetFileName(originalFilePath);
+                                download.FilePath = Path.Combine(WorkingDirectory, fileName);
+                            }
+                        }
+
+                        EnqueueDownload(download);
+                        Query = "";
+                    }
+                }
 
                 Query = "";
             }
@@ -359,16 +397,244 @@ public partial class DashboardViewModel : ViewModelBase
             download.CancelCommand.Execute(null);
     }
 
+    #region video generation
+
+
+    // Method to prompt for working directory on load
+    public async Task PromptForWorkingDirectoryAsync()
+    {
+        try
+        {
+            string? selectedDirectory = null;
+
+            // If we have a saved directory and it exists, use it without prompting
+            if (
+                !string.IsNullOrEmpty(_settingsService.LastWorkingDirectory)
+                && Directory.Exists(_settingsService.LastWorkingDirectory)
+            )
+            {
+                selectedDirectory = _settingsService.LastWorkingDirectory;
+            }
+            else
+            {
+                // Create and show the working directory dialog
+                var workingDirDialog = _viewModelManager.CreateWorkingDirectoryDialogViewModel(
+                    initialDirectory: _settingsService.LastWorkingDirectory
+                );
+
+                selectedDirectory = await _dialogManager.ShowDialogAsync(workingDirDialog);
+            }
+
+            if (!string.IsNullOrEmpty(selectedDirectory))
+            {
+                WorkingDirectory = selectedDirectory;
+                _settingsService.LastWorkingDirectory = selectedDirectory;
+                _settingsService.Save();
+
+                // Scan for existing MP3 files
+                await ScanForExistingMp3FilesAsync();
+            }
+            else
+            {
+                // If no directory was selected, use a default
+                WorkingDirectory = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.MyMusic),
+                    "YouTubeDownloader"
+                );
+
+                // Create directory if it doesn't exist
+                if (!Directory.Exists(WorkingDirectory))
+                    Directory.CreateDirectory(WorkingDirectory);
+
+                _settingsService.LastWorkingDirectory = WorkingDirectory;
+                _settingsService.Save();
+
+                await ScanForExistingMp3FilesAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            _snackbarManager.Notify($"Error setting working directory: {ex.Message}");
+        }
+    }
+
+    // Method to scan for existing MP3 files in the working directory
+    private async Task ScanForExistingMp3FilesAsync()
+    {
+        if (string.IsNullOrEmpty(WorkingDirectory) || !Directory.Exists(WorkingDirectory))
+            return;
+
+        try
+        {
+            // Clear existing items
+            ExistingMp3Files.Clear();
+
+            // Find all MP3 files
+            var mp3Files = Directory.GetFiles(WorkingDirectory, "*.mp3");
+
+            if (mp3Files.Length > 0)
+            {
+                IsBusy = true;
+                var progress = _progressMuxer.CreateInput(0.01);
+
+                for (int i = 0; i < mp3Files.Length; i++)
+                {
+                    var filePath = mp3Files[i];
+                    try
+                    {
+                        // Create a dummy video object to represent this file
+                        var fileName = Path.GetFileName(filePath);
+
+                        // Create author
+                        var author = new YoutubeExplode.Common.Author(
+                            channelId: new YoutubeExplode.Channels.ChannelId("local_file_channel"), // Create a valid dummy ChannelId
+                            channelTitle: "Local File"
+                        );
+
+                        // Create thumbnails
+                        var thumbnails = new[]
+                        {
+                            new YoutubeExplode.Common.Thumbnail(
+                                url: "https://via.placeholder.com/120",
+                                resolution: new YoutubeExplode.Common.Resolution(
+                                    width: 120,
+                                    height: 90
+                                )
+                            ),
+                        };
+
+                        // Create engagement stats
+                        var engagement = new YoutubeExplode.Videos.Engagement(
+                            viewCount: 0,
+                            likeCount: 0,
+                            dislikeCount: 0
+                        );
+
+                        // Get file duration
+                        TimeSpan? duration = null;
+                        double durationSeconds = 0;
+                        try
+                        {
+                            var tagFile = TagLib.File.Create(filePath);
+                            duration = tagFile.Properties.Duration;
+                            durationSeconds = duration.Value.TotalSeconds;
+                        }
+                        catch
+                        {
+                            // If we can't read tags, just continue with zero duration
+                        }
+
+                        // Create video with the correct constructor parameters
+                        var video = new YoutubeExplode.Videos.Video(
+                            id: new YoutubeExplode.Videos.VideoId("existing_" + i),
+                            title: fileName,
+                            author: author,
+                            uploadDate: DateTimeOffset.Now,
+                            description: "Existing MP3 file",
+                            duration: duration,
+                            thumbnails: thumbnails,
+                            keywords: Array.Empty<string>(),
+                            engagement: engagement
+                        );
+
+                        // Create download preference with the correct constructor
+                        var downloadPreference = new VideoDownloadPreference(
+                            PreferredContainer: YoutubeExplode.Videos.Streams.Container.Mp3,
+                            PreferredVideoQuality: VideoQualityPreference.Highest
+                        );
+
+                        // Create a download view model for this file
+                        var downloadViewModel = _viewModelManager.CreateDownloadViewModel(
+                            video,
+                            downloadPreference,
+                            filePath
+                        );
+
+                        // Mark as completed since it already exists
+                        downloadViewModel.Status = DownloadStatus.Completed;
+
+                        // Set the duration
+                        downloadViewModel.Duration = durationSeconds;
+
+                        // Add to our collection
+                        ExistingMp3Files.Add(downloadViewModel);
+
+                        // Add a small delay to ensure UI responsiveness during scanning
+                        await Task.Delay(10);
+                    }
+                    catch (Exception ex)
+                    {
+                        // Log exception and skip files that can't be processed
+                        System.Diagnostics.Debug.WriteLine(
+                            $"Error processing file {filePath}: {ex.Message}"
+                        );
+                    }
+
+                    progress.Report(Percentage.FromFraction((i + 1.0) / mp3Files.Length));
+                }
+
+                progress.ReportCompletion();
+                IsBusy = false;
+
+                // Notify user
+                if (ExistingMp3Files.Count > 0)
+                {
+                    _snackbarManager.Notify(
+                        $"Found {ExistingMp3Files.Count} existing MP3 files in the working directory."
+                    );
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _snackbarManager.Notify($"Error scanning for MP3 files: {ex.Message}");
+        }
+    }
+
     // ADDED: GenerateVideoCommand (empty for now)
     private bool CanGenerateVideo() => !IsBusy && Downloads.Any(); // Example: enable if not busy and there are downloads
 
     [RelayCommand(CanExecute = nameof(CanGenerateVideo))]
     private void GenerateVideo()
     {
-        // This function is intentionally empty for now.
-        // Logic for "Generate Video" will be implemented here.
-        _snackbarManager.Notify("Generate Video feature is not yet implemented.");
+        // Get all completed downloads from regular downloads
+        var completedDownloads = Downloads
+            .Where(d => d.Status == DownloadStatus.Completed)
+            .ToList();
+
+        // Combine with existing MP3 files
+        var allMp3Files = completedDownloads
+            .Concat(ExistingMp3Files)
+            .Where(d => Path.GetExtension(d.FilePath)?.ToLowerInvariant() == ".mp3")
+            .ToList();
+
+        System.Diagnostics.Debug.WriteLine($"Found {allMp3Files.Count} total MP3 files:");
+
+        // List each MP3 file path and duration
+        foreach (var download in allMp3Files)
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"- {download.FilePath} (Duration: {download.Duration} seconds)"
+            );
+        }
+
+        // If no MP3 files were found, show a notification
+        if (!allMp3Files.Any())
+        {
+            _snackbarManager.Notify("No MP3 files found.");
+            return;
+        }
+
+        // For now, just notify that files were found
+        _snackbarManager.Notify(
+            $"Found {allMp3Files.Count} MP3 files. Check debug output for details."
+        );
+
+        // Your future implementation will go here
     }
+    #endregion
+
+
 
     protected override void Dispose(bool disposing)
     {
@@ -381,5 +647,25 @@ public partial class DashboardViewModel : ViewModelBase
         }
 
         base.Dispose(disposing);
+    }
+
+    // Helper class to compare download view models by file path
+    private class DownloadViewModelFilePathComparer : IEqualityComparer<DownloadViewModel>
+    {
+        public bool Equals(DownloadViewModel? x, DownloadViewModel? y)
+        {
+            if (x == null || y == null)
+                return false;
+
+            return string.Equals(x.FilePath, y.FilePath, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public int GetHashCode(DownloadViewModel obj)
+        {
+            if (obj == null || obj.FilePath == null)
+                return 0;
+
+            return obj.FilePath.ToLowerInvariant().GetHashCode();
+        }
     }
 }

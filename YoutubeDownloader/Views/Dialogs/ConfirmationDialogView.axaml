@@ -1,0 +1,53 @@
+<UserControl
+    x:Class="YoutubeDownloader.Views.Dialogs.ConfirmDialogView"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:dialogs="clr-namespace:YoutubeDownloader.ViewModels.Dialogs"
+    xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+    xmlns:materialStyles="clr-namespace:Material.Styles.Controls;assembly=Material.Styles"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    x:Name="UserControl"
+    d:DesignHeight="200"
+    d:DesignWidth="400"
+    x:DataType="dialogs:ConfirmationDialogViewModel"
+    mc:Ignorable="d">
+
+	<materialStyles:Card>
+		<Grid RowDefinitions="Auto,*,Auto">
+			<!-- Header -->
+			<TextBlock
+                Grid.Row="0"
+                Margin="16,16,16,0"
+                FontSize="18"
+                FontWeight="Medium"
+                Text="{Binding Title}" />
+
+			<!-- Content -->
+			<TextBlock
+                Grid.Row="1"
+                Margin="16"
+                TextWrapping="Wrap"
+                Text="{Binding Message}" />
+
+			<!-- Buttons -->
+			<StackPanel
+                Grid.Row="2"
+                Margin="8"
+                HorizontalAlignment="Right"
+                Orientation="Horizontal"
+                Spacing="8">
+				<Button
+                    Padding="12,8"
+                    Command="{Binding CancelCommand}"
+                    Content="{Binding CancelButtonText}"
+                    Theme="{DynamicResource MaterialFlatButton}" />
+				<Button
+                    Padding="12,8"
+                    Command="{Binding ConfirmCommand}"
+                    Content="{Binding ConfirmButtonText}"
+                    Theme="{DynamicResource MaterialFlatButton}" />
+			</StackPanel>
+		</Grid>
+	</materialStyles:Card>
+</UserControl>

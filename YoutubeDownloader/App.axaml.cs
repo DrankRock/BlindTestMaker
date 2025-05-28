@@ -1,8 +1,14 @@
 using System;
+using System.IO;
+using System.Net.Http;
+using System.Threading.Tasks;
+using AsyncImageLoader;
+using AsyncImageLoader.Loaders;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
+using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using AvaloniaWebView;
 using Material.Styles.Themes;
@@ -49,6 +55,8 @@ public class App : Application, IDisposable
         services.AddTransient<DownloadSingleSetupViewModel>();
         services.AddTransient<MessageBoxViewModel>();
         services.AddTransient<SettingsViewModel>();
+        services.AddTransient<ConfirmationDialogViewModel>();
+        services.AddTransient<WorkingDirectoryDialogViewModel>();
 
         _services = services.BuildServiceProvider(true);
         _settingsService = _services.GetRequiredService<SettingsService>();
@@ -109,11 +117,20 @@ public class App : Application, IDisposable
 
         base.OnFrameworkInitializationCompleted();
 
+        // Configure AsyncImageLoader to handle resource URLs
+        ConfigureAsyncImageLoader();
+
         // Set up custom theme colors
         InitializeTheme();
 
         // Load settings
         _settingsService.Load();
+    }
+
+    private void ConfigureAsyncImageLoader()
+    {
+        // Set a custom loader that handles resource URLs
+        ImageLoader.AsyncImageLoader = new CustomResourceImageLoader();
     }
 
     private void Application_OnActualThemeVariantChanged(object? sender, EventArgs args) =>
@@ -124,5 +141,92 @@ public class App : Application, IDisposable
     {
         _eventRoot.Dispose();
         _services.Dispose();
+    }
+}
+
+// Custom image loader that handles web URLs, Avalonia resource URLs, and local file paths
+public class CustomResourceImageLoader : IAsyncImageLoader
+{
+    private readonly HttpClient _httpClient;
+
+    public CustomResourceImageLoader()
+    {
+        _httpClient = new HttpClient();
+    }
+
+    public async Task<Bitmap?> ProvideImageAsync(string url)
+    {
+        try
+        {
+            byte[]? imageData = null;
+
+            // Handle Avalonia resource URLs
+            if (url.StartsWith("avares://", StringComparison.OrdinalIgnoreCase))
+            {
+                var uri = new Uri(url);
+                if (AssetLoader.Exists(uri)) // Check if asset exists
+                {
+                    using var stream = AssetLoader.Open(uri);
+                    if (stream != null)
+                    {
+                        using var memoryStream = new MemoryStream();
+                        await stream.CopyToAsync(memoryStream);
+                        imageData = memoryStream.ToArray();
+                    }
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"Asset not found: {url}");
+                }
+            }
+            // Handle regular web URLs
+            else if (
+                url.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+                || url.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+            )
+            {
+                var response = await _httpClient.GetAsync(url);
+                if (response.IsSuccessStatusCode)
+                {
+                    imageData = await response.Content.ReadAsByteArrayAsync();
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine(
+                        $"Failed to download image from {url}. Status: {response.StatusCode}"
+                    );
+                }
+            }
+            // Handle local file paths
+            else if (File.Exists(url))
+            {
+                imageData = await File.ReadAllBytesAsync(url);
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"URL type not supported or file not found: {url}"
+                );
+            }
+
+            if (imageData != null && imageData.Length > 0)
+            {
+                using var memoryStream = new MemoryStream(imageData);
+                return new Bitmap(memoryStream);
+            }
+
+            return null;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to load image from {url}: {ex.Message}");
+            return null;
+        }
+    }
+
+    public void Dispose()
+    {
+        _httpClient?.Dispose();
+        GC.SuppressFinalize(this); // Recommended for IDisposable pattern
     }
 }
