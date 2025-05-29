@@ -89,6 +89,8 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             Debug.WriteLine("AudioVisualizerEngine.Constructor - Initialization complete.");
         }
 
+        private VisualizationParameters _visualizationParameters;
+
         // Add these constants at the top of AudioVisualizerEngine class
         private const int PROGRESS_LOG_INTERVAL = 60; // Log every 60 frames (1 second at 60fps)
         private const int DETAILED_LOG_INTERVAL = 600; // Detailed logs every 600 frames (10 seconds)
@@ -96,12 +98,16 @@ namespace YoutubeDownloader.Core.AudioVisualisation
         public async Task CreateVisualization(
             string mp3Path,
             VisualizationMode mode,
-            ColorMode colorMode
+            ColorMode colorMode,
+            VisualizationParameters parameters = null
         )
         {
             Debug.WriteLine(
                 $"AudioVisualizerEngine.CreateVisualization - Starting visualization for MP3: {mp3Path}, Mode: {mode}, ColorMode: {colorMode}"
             );
+
+            _visualizationParameters =
+                parameters ?? VisualizationParametersFactory.CreateDefault(mode);
 
             await LoadAudioData(mp3Path);
             Debug.WriteLine("AudioVisualizerEngine.CreateVisualization - Audio data loaded.");
@@ -272,28 +278,67 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                     switch (mode)
                     {
                         case VisualizationMode.BasicWaveform:
-                            DrawBasicWaveform(g, currentSamples, colorMode);
+                            DrawBasicWaveform(
+                                g,
+                                currentSamples,
+                                colorMode,
+                                _visualizationParameters as BasicWaveformParameters
+                            );
                             break;
                         case VisualizationMode.CircularWave:
-                            DrawCircularWave(g, currentSamples, colorMode);
+                            DrawCircularWave(
+                                g,
+                                currentSamples,
+                                colorMode,
+                                _visualizationParameters as CircularWaveParameters
+                            );
                             break;
                         case VisualizationMode.SphericalPulse:
-                            DrawSphericalPulse(g, currentSamples, colorMode);
+                            DrawSphericalPulse(
+                                g,
+                                currentSamples,
+                                colorMode,
+                                _visualizationParameters as SphericalPulseParameters
+                            );
                             break;
                         case VisualizationMode.SpectrumBars:
-                            DrawSpectrumBars(g, colorMode);
+                            DrawSpectrumBars(
+                                g,
+                                colorMode,
+                                _visualizationParameters as SpectrumBarsParameters
+                            );
                             break;
                         case VisualizationMode.ParticleFlow:
-                            DrawParticleFlow(g, currentSamples, colorMode);
+                            DrawParticleFlow(
+                                g,
+                                currentSamples,
+                                colorMode,
+                                _visualizationParameters as ParticleFlowParameters
+                            );
                             break;
                         case VisualizationMode.KaleidoscopeWave:
-                            DrawKaleidoscopeWave(g, currentSamples, colorMode);
+                            DrawKaleidoscopeWave(
+                                g,
+                                currentSamples,
+                                colorMode,
+                                _visualizationParameters as KaleidoscopeWaveParameters
+                            );
                             break;
                         case VisualizationMode.DNA_Helix:
-                            DrawDNAHelix(g, currentSamples, colorMode);
+                            DrawDNAHelix(
+                                g,
+                                currentSamples,
+                                colorMode,
+                                _visualizationParameters as DNAHelixParameters
+                            );
                             break;
                         case VisualizationMode.Aurora:
-                            DrawAurora(g, currentSamples, colorMode);
+                            DrawAurora(
+                                g,
+                                currentSamples,
+                                colorMode,
+                                _visualizationParameters as AuroraParameters
+                            );
                             break;
                     }
                 }
@@ -473,7 +518,12 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             }
         }
 
-        private void DrawBasicWaveform(Graphics g, float[] samples, ColorMode colorMode)
+        private void DrawBasicWaveform(
+            Graphics g,
+            float[] samples,
+            ColorMode colorMode,
+            BasicWaveformParameters parameters
+        )
         {
             Debug.WriteLine(
                 $"AudioVisualizerEngine.DrawBasicWaveform - Drawing with {samples.Length} samples."
@@ -486,16 +536,18 @@ namespace YoutubeDownloader.Core.AudioVisualisation
 
             var points = new List<PointF>();
             var step = Math.Max(1, samples.Length / _width); // Ensure step is at least 1
+            float verticalCenter = _height * parameters.VerticalPosition;
+            float waveHeight = _height * parameters.WaveHeight;
 
             for (int x = 0; x < _width; x++)
             {
                 int index = x * step;
                 if (index < samples.Length)
                 {
-                    float y = _height / 2f + samples[index] * _height / 4f;
+                    float y = verticalCenter + samples[index] * waveHeight;
                     points.Add(new PointF(x, y));
                 }
-                else if (points.Count > 0) // If out of samples, add last point again to complete line to edge if necessary
+                else if (points.Count > 0)
                 {
                     points.Add(new PointF(x, points.Last().Y));
                 }
@@ -506,13 +558,37 @@ namespace YoutubeDownloader.Core.AudioVisualisation
 
             if (points.Count > 1)
             {
+                // Draw glow effect first if enabled
+                if (parameters.EnableGlow)
+                {
+                    for (int i = 0; i < points.Count - 1; i++)
+                    {
+                        int sampleIndex = i * step;
+                        float intensity =
+                            (sampleIndex < samples.Length)
+                                ? Math.Abs(samples[sampleIndex]) * 2f
+                                : 0.5f;
+                        var color = GetColor(colorMode, intensity, (float)i / points.Count);
+                        using (
+                            var glowPen = new Pen(
+                                Color.FromArgb(50, color),
+                                parameters.LineThickness + 4
+                            )
+                        )
+                        {
+                            g.DrawLine(glowPen, points[i], points[i + 1]);
+                        }
+                    }
+                }
+
+                // Draw main waveform
                 for (int i = 0; i < points.Count - 1; i++)
                 {
                     int sampleIndex = i * step;
                     float intensity =
                         (sampleIndex < samples.Length) ? Math.Abs(samples[sampleIndex]) * 2f : 0.5f;
                     var color = GetColor(colorMode, intensity, (float)i / points.Count);
-                    using (var pen = new Pen(color, 2))
+                    using (var pen = new Pen(color, parameters.LineThickness))
                     {
                         g.DrawLine(pen, points[i], points[i + 1]);
                     }
@@ -529,7 +605,12 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             }
         }
 
-        private void DrawCircularWave(Graphics g, float[] samples, ColorMode colorMode)
+        private void DrawCircularWave(
+            Graphics g,
+            float[] samples,
+            ColorMode colorMode,
+            CircularWaveParameters parameters
+        )
         {
             Debug.WriteLine(
                 $"AudioVisualizerEngine.DrawCircularWave - Drawing with {samples.Length} samples."
@@ -540,27 +621,29 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                 return;
             }
 
-            float centerX = _width / 2f;
-            float centerY = _height / 2f;
-            float baseRadius = Math.Min(_width, _height) / 4f;
+            float centerX = _width * parameters.CenterX;
+            float centerY = _height * parameters.CenterY;
+            float baseRadius = Math.Min(_width, _height) * parameters.BaseRadius;
             Debug.WriteLine(
                 $"AudioVisualizerEngine.DrawCircularWave - Center: ({centerX},{centerY}), BaseRadius: {baseRadius}"
             );
 
             var points = new List<PointF>();
-            int sampleCount = Math.Min(samples.Length, 360); // Use up to 360 samples for a smooth circle
+            int sampleCount = Math.Min(samples.Length, parameters.SamplePoints);
             Debug.WriteLine(
                 $"AudioVisualizerEngine.DrawCircularWave - Will use {sampleCount} samples for the circle."
             );
 
+            // Draw main circle
             for (int i = 0; i < sampleCount; i++)
             {
                 float angle = (float)(i * 2 * Math.PI / sampleCount);
-                // Ensure sample index is within bounds if samples.Length < sampleCount
                 int currentSampleIndex =
                     (samples.Length == sampleCount) ? i : (i * samples.Length / sampleCount);
 
-                float radius = baseRadius + samples[currentSampleIndex] * baseRadius;
+                float radius =
+                    baseRadius
+                    + samples[currentSampleIndex] * baseRadius * parameters.MaxRadiusMultiplier;
                 float x = centerX + (float)Math.Cos(angle) * radius;
                 float y = centerY + (float)Math.Sin(angle) * radius;
                 points.Add(new PointF(x, y));
@@ -575,6 +658,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
 
             if (points.Count > 1)
             {
+                // Draw main circle
                 for (int i = 0; i < points.Count; i++)
                 {
                     int next = (i + 1) % points.Count;
@@ -582,9 +666,68 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                         (samples.Length == sampleCount) ? i : (i * samples.Length / sampleCount);
                     float intensity = Math.Abs(samples[currentSampleIndex]) * 2f;
                     var color = GetColor(colorMode, intensity, (float)i / points.Count);
-                    using (var pen = new Pen(color, 3))
+                    using (var pen = new Pen(color, parameters.LineThickness))
                     {
                         g.DrawLine(pen, points[i], points[next]);
+                    }
+                }
+
+                // Draw multiple rings if enabled
+                if (parameters.DrawMultipleRings)
+                {
+                    for (int ring = 1; ring < parameters.RingCount; ring++)
+                    {
+                        float ringScale = 1f - (ring * 0.2f); // Each ring is smaller
+                        float ringAlpha = 1f - (ring * 0.3f); // Each ring is more transparent
+
+                        var ringPoints = new List<PointF>();
+                        for (int i = 0; i < sampleCount; i++)
+                        {
+                            float angle = (float)(i * 2 * Math.PI / sampleCount);
+                            int currentSampleIndex =
+                                (samples.Length == sampleCount)
+                                    ? i
+                                    : (i * samples.Length / sampleCount);
+
+                            float radius =
+                                baseRadius * ringScale
+                                + samples[currentSampleIndex]
+                                    * baseRadius
+                                    * parameters.MaxRadiusMultiplier
+                                    * ringScale;
+                            float x = centerX + (float)Math.Cos(angle) * radius;
+                            float y = centerY + (float)Math.Sin(angle) * radius;
+                            ringPoints.Add(new PointF(x, y));
+                        }
+
+                        // Draw ring
+                        if (ringPoints.Count > 1)
+                        {
+                            for (int i = 0; i < ringPoints.Count; i++)
+                            {
+                                int next = (i + 1) % ringPoints.Count;
+                                int currentSampleIndex =
+                                    (samples.Length == sampleCount)
+                                        ? i
+                                        : (i * samples.Length / sampleCount);
+                                float intensity =
+                                    Math.Abs(samples[currentSampleIndex]) * 2f * ringAlpha;
+                                var color = GetColor(
+                                    colorMode,
+                                    intensity,
+                                    (float)i / ringPoints.Count + ring * 0.1f
+                                );
+                                using (
+                                    var pen = new Pen(
+                                        Color.FromArgb((int)(ringAlpha * 255), color),
+                                        parameters.LineThickness * ringScale
+                                    )
+                                )
+                                {
+                                    g.DrawLine(pen, ringPoints[i], ringPoints[next]);
+                                }
+                            }
+                        }
                     }
                 }
                 Debug.WriteLine(
@@ -599,7 +742,12 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             }
         }
 
-        private void DrawSphericalPulse(Graphics g, float[] samples, ColorMode colorMode)
+        private void DrawSphericalPulse(
+            Graphics g,
+            float[] samples,
+            ColorMode colorMode,
+            SphericalPulseParameters parameters
+        )
         {
             Debug.WriteLine(
                 $"AudioVisualizerEngine.DrawSphericalPulse - Drawing with {samples.Length} samples."
@@ -612,19 +760,18 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                 return;
             }
 
-            float centerX = _width / 2f;
-            float centerY = _height / 2f;
+            float centerX = _width * parameters.CenterX;
+            float centerY = _height * parameters.CenterY;
 
-            int circleCount = Math.Min(_historyBuffer.Count, 20);
-            var histories = _historyBuffer.ToArray(); // Get a snapshot
+            int circleCount = Math.Min(_historyBuffer.Count, parameters.MaxCircles);
+            var histories = _historyBuffer.ToArray();
             Debug.WriteLine(
                 $"AudioVisualizerEngine.DrawSphericalPulse - Center: ({centerX},{centerY}), Drawing {circleCount} historical circles."
             );
 
             for (int h = 0; h < circleCount; h++)
             {
-                float alpha = 1f - (float)h / circleCount;
-                // Get samples from history, ensure we don't go out of bounds
+                float alpha = 1f - (float)h / circleCount * parameters.AlphaFalloff;
                 var historySamples = histories[(histories.Length - 1) - h];
                 if (historySamples == null || historySamples.Length == 0)
                 {
@@ -650,7 +797,10 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                 }
                 avgAmplitude /= samplesToAverage;
 
-                float radius = 50 + avgAmplitude * 500 + h * 20;
+                float radius =
+                    parameters.BaseRadius
+                    + avgAmplitude * parameters.AmplitudeMultiplier
+                    + h * parameters.RadiusGrowthRate;
                 var color = GetColor(colorMode, alpha * 0.7f, avgAmplitude);
                 Debug.WriteLine(
                     $"AudioVisualizerEngine.DrawSphericalPulse - Circle {h}: Alpha={alpha}, AvgAmplitude={avgAmplitude}, Radius={radius}, Color={color}"
@@ -669,47 +819,95 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             Debug.WriteLine("AudioVisualizerEngine.DrawSphericalPulse - Finished drawing pulses.");
         }
 
-        private void DrawSpectrumBars(Graphics g, ColorMode colorMode)
+        private void DrawSpectrumBars(
+            Graphics g,
+            ColorMode colorMode,
+            SpectrumBarsParameters parameters
+        )
         {
             Debug.WriteLine("AudioVisualizerEngine.DrawSpectrumBars - Drawing spectrum bars.");
-            int barCount = 64;
-            float barWidth = (float)_width / barCount;
+
+            float totalBarWidth = _width - (parameters.BarCount - 1) * parameters.BarSpacing;
+            float barWidth = totalBarWidth / parameters.BarCount;
+
             Debug.WriteLine(
-                $"AudioVisualizerEngine.DrawSpectrumBars - BarCount: {barCount}, BarWidth: {barWidth}"
+                $"AudioVisualizerEngine.DrawSpectrumBars - BarCount: {parameters.BarCount}, BarWidth: {barWidth}"
             );
 
-            for (int i = 0; i < barCount; i++)
+            for (int i = 0; i < parameters.BarCount; i++)
             {
-                // Ensure fftIndex is within the valid range of _fftBuffer (up to _fftBuffer.Length / 2 - 1)
-                int fftIndex = Math.Min(
-                    (i * (_fftBuffer.Length / 2)) / barCount,
-                    (_fftBuffer.Length / 2) - 1
-                );
+                int fftIndex;
+                if (parameters.LogarithmicScale)
+                {
+                    // Logarithmic scale for better frequency distribution
+                    float logScale = (float)Math.Log10(1 + i * 9.0 / parameters.BarCount);
+                    fftIndex = (int)(logScale * (_fftBuffer.Length / 2 - 1));
+                }
+                else
+                {
+                    // Linear scale
+                    fftIndex = Math.Min(
+                        (i * (_fftBuffer.Length / 2)) / parameters.BarCount,
+                        (_fftBuffer.Length / 2) - 1
+                    );
+                }
+
                 if (fftIndex < 0)
-                    fftIndex = 0; // Should not happen with proper barCount/fftBuffer length
+                    fftIndex = 0;
 
-                float magnitude = _fftBuffer[fftIndex] * 10f;
-                float barHeight = Math.Min(magnitude * _height * 0.75f, _height * 0.8f); // Adjusted scaling
-                barHeight = Math.Max(0, barHeight); // Ensure barHeight is not negative
+                float magnitude = _fftBuffer[fftIndex] * parameters.AmplitudeMultiplier;
+                float barHeight = Math.Min(
+                    magnitude * _height * 0.75f,
+                    _height * parameters.MaxBarHeight
+                );
+                barHeight = Math.Max(0, barHeight);
 
-                float x = i * barWidth;
-                float y = _height - barHeight;
+                float x = i * (barWidth + parameters.BarSpacing);
+                float y = parameters.MirrorBars ? (_height - barHeight) / 2 : _height - barHeight;
 
-                var color = GetColor(colorMode, Math.Min(magnitude, 1f), (float)i / barCount);
-                if (i == 0 || i == barCount - 1)
+                var color = GetColor(
+                    colorMode,
+                    Math.Min(magnitude, 1f),
+                    (float)i / parameters.BarCount
+                );
+                if (i == 0 || i == parameters.BarCount - 1)
                     Debug.WriteLine(
                         $"AudioVisualizerEngine.DrawSpectrumBars - Bar {i}: FFTIndex={fftIndex}, Magnitude={_fftBuffer[fftIndex]}, CalcMag={magnitude}, BarHeight={barHeight}, X={x}, Y={y}, Color={color}"
                     );
 
                 using (var brush = new SolidBrush(color))
                 {
-                    g.FillRectangle(brush, x, y, barWidth - 2, barHeight);
+                    g.FillRectangle(brush, x, y, barWidth, barHeight);
+
+                    // Mirror bottom bars if enabled
+                    if (parameters.MirrorBars)
+                    {
+                        g.FillRectangle(brush, x, _height / 2, barWidth, barHeight);
+                    }
                 }
 
-                // Add glow effect
-                using (var glowBrush = new SolidBrush(Color.FromArgb(50, color)))
+                // Add glow effect if enabled
+                if (parameters.EnableGlow)
                 {
-                    g.FillRectangle(glowBrush, x - 2, y - 5, barWidth + 2, barHeight + 10);
+                    using (
+                        var glowBrush = new SolidBrush(
+                            Color.FromArgb((int)parameters.GlowIntensity, color)
+                        )
+                    )
+                    {
+                        g.FillRectangle(glowBrush, x - 2, y - 5, barWidth + 4, barHeight + 10);
+
+                        if (parameters.MirrorBars)
+                        {
+                            g.FillRectangle(
+                                glowBrush,
+                                x - 2,
+                                _height / 2 - 5,
+                                barWidth + 4,
+                                barHeight + 10
+                            );
+                        }
+                    }
                 }
             }
             Debug.WriteLine(
@@ -717,7 +915,12 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             );
         }
 
-        private void DrawParticleFlow(Graphics g, float[] samples, ColorMode colorMode)
+        private void DrawParticleFlow(
+            Graphics g,
+            float[] samples,
+            ColorMode colorMode,
+            ParticleFlowParameters parameters
+        )
         {
             Debug.WriteLine(
                 $"AudioVisualizerEngine.DrawParticleFlow - Drawing with {samples.Length} samples. Particle count: {_particles.Count}"
@@ -741,11 +944,14 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                 $"AudioVisualizerEngine.DrawParticleFlow - AvgAmplitude: {avgAmplitude}"
             );
 
-            // Spawn new particles
-            if (avgAmplitude > 0.1f && _particles.Count < 2000)
+            // Spawn new particles based on parameters
+            if (
+                avgAmplitude > parameters.SpawnThreshold
+                && _particles.Count < parameters.MaxParticles
+            )
             {
-                int particlesToSpawn = (int)(avgAmplitude * 20); // Spawn more based on amplitude
-                particlesToSpawn = Math.Min(particlesToSpawn, 20); // Cap spawn rate
+                int particlesToSpawn = (int)(avgAmplitude * parameters.SpawnRate);
+                particlesToSpawn = Math.Min(particlesToSpawn, parameters.SpawnRate);
                 Debug.WriteLine(
                     $"AudioVisualizerEngine.DrawParticleFlow - Spawning {particlesToSpawn} new particles."
                 );
@@ -755,10 +961,19 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                     {
                         X = _random.Next(_width),
                         Y = _random.Next(_height),
-                        VX = (_random.NextSingle() - 0.5f) * avgAmplitude * 20,
-                        VY = (_random.NextSingle() - 0.5f) * avgAmplitude * 20,
+                        VX =
+                            (_random.NextSingle() - 0.5f)
+                            * avgAmplitude
+                            * parameters.VelocityMultiplier,
+                        VY =
+                            (_random.NextSingle() - 0.5f)
+                            * avgAmplitude
+                            * parameters.VelocityMultiplier,
                         Life = 1f,
-                        Size = _random.NextSingle() * 5 + 2,
+                        Size =
+                            parameters.BaseParticleSize
+                            + _random.NextSingle()
+                                * (parameters.MaxParticleSize - parameters.BaseParticleSize),
                     };
                     _particles.Add(newParticle);
                     if (i == 0)
@@ -777,15 +992,18 @@ namespace YoutubeDownloader.Core.AudioVisualisation
 
                 p.X += p.VX;
                 p.Y += p.VY;
-                p.Life -= 0.01f;
+                p.Life -= parameters.LifeDecayRate;
 
                 // Dampen velocity
-                p.VX *= 0.98f;
-                p.VY *= 0.98f;
+                p.VX *= parameters.DampingFactor;
+                p.VY *= parameters.DampingFactor;
 
-                // Apply audio-reactive forces (more subtle)
-                p.VX += (_smoothBass - 0.3f) * 0.1f * Math.Sign(p.VX); // Apply force relative to current velocity direction or a base
-                p.VY += (_smoothMid - 0.3f) * 0.1f * Math.Sign(p.VY);
+                // Apply audio-reactive forces if enabled
+                if (parameters.EnableAudioForces)
+                {
+                    p.VX += (_smoothBass - 0.3f) * parameters.ForceMultiplier * Math.Sign(p.VX);
+                    p.VY += (_smoothMid - 0.3f) * parameters.ForceMultiplier * Math.Sign(p.VY);
+                }
 
                 if (
                     p.Life <= 0
@@ -796,7 +1014,6 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                 )
                 {
                     _particles.RemoveAt(i);
-                    // Debug.WriteLine($"AudioVisualizerEngine.DrawParticleFlow - Particle removed. Reason: Life={p.Life}, X={p.X}, Y={p.Y}");
                     continue;
                 }
 
@@ -815,7 +1032,12 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             );
         }
 
-        private void DrawKaleidoscopeWave(Graphics g, float[] samples, ColorMode colorMode)
+        private void DrawKaleidoscopeWave(
+            Graphics g,
+            float[] samples,
+            ColorMode colorMode,
+            KaleidoscopeWaveParameters parameters
+        )
         {
             Debug.WriteLine(
                 $"AudioVisualizerEngine.DrawKaleidoscopeWave - Drawing with {samples.Length} samples."
@@ -826,42 +1048,38 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                 return;
             }
 
-            float centerX = _width / 2f;
-            float centerY = _height / 2f;
-            int segments = 8;
+            float centerX = _width * parameters.CenterX;
+            float centerY = _height * parameters.CenterY;
             Debug.WriteLine(
-                $"AudioVisualizerEngine.DrawKaleidoscopeWave - Center: ({centerX},{centerY}), Segments: {segments}"
+                $"AudioVisualizerEngine.DrawKaleidoscopeWave - Center: ({centerX},{centerY}), Segments: {parameters.Segments}"
             );
 
             g.TranslateTransform(centerX, centerY);
             Debug.WriteLine("AudioVisualizerEngine.DrawKaleidoscopeWave - Translated to center.");
 
-            for (int seg = 0; seg < segments; seg++)
+            for (int seg = 0; seg < parameters.Segments; seg++)
             {
-                g.RotateTransform(360f / segments);
-                // Debug.WriteLine($"AudioVisualizerEngine.DrawKaleidoscopeWave - Segment {seg}: Rotated by {360f / segments} degrees.");
+                g.RotateTransform(360f / parameters.Segments);
 
                 var points = new List<PointF>();
-                int numPointsInSegment = 100;
-                // Ensure sampleStep is at least 1, and index doesn't go out of bounds
-                int sampleStep = Math.Max(1, samples.Length / numPointsInSegment);
+                int sampleStep = Math.Max(1, samples.Length / parameters.PointsPerSegment);
 
-                for (int i = 0; i < numPointsInSegment; i++)
+                for (int i = 0; i < parameters.PointsPerSegment; i++)
                 {
                     int index = i * sampleStep;
                     if (index < samples.Length)
                     {
                         float r =
-                            50
-                            + i * (_width / (float)(numPointsInSegment * 4))
-                            + samples[index] * 100; // Scale radius based on width/points
-                        float angle = (float)(i * 0.1); // Angle relative to segment's current orientation
+                            parameters.BaseRadius
+                            + i * parameters.RadiusGrowthRate
+                            + samples[index] * parameters.WaveAmplitude;
+                        float angle = i * parameters.SpiralTightness;
                         float x = r * (float)Math.Cos(angle);
                         float y = r * (float)Math.Sin(angle);
                         points.Add(new PointF(x, y));
                     }
                     else if (points.Any())
-                    { // Add last point if out of samples
+                    {
                         points.Add(points.Last());
                     }
                 }
@@ -879,9 +1097,9 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                         var color = GetColor(
                             colorMode,
                             intensity * 0.7f,
-                            (float)i / points.Count + (float)seg / segments
+                            (float)i / points.Count + (float)seg / parameters.Segments
                         );
-                        using (var pen = new Pen(color, 2))
+                        using (var pen = new Pen(color, parameters.LineThickness))
                         {
                             g.DrawLine(pen, points[i], points[i + 1]);
                         }
@@ -895,7 +1113,12 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             );
         }
 
-        private void DrawDNAHelix(Graphics g, float[] samples, ColorMode colorMode)
+        private void DrawDNAHelix(
+            Graphics g,
+            float[] samples,
+            ColorMode colorMode,
+            DNAHelixParameters parameters
+        )
         {
             Debug.WriteLine(
                 $"AudioVisualizerEngine.DrawDNAHelix - Drawing with {samples.Length} samples."
@@ -906,9 +1129,9 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                 return;
             }
 
-            float centerX = _width / 2f;
-            int numPointsInHelix = Math.Min(samples.Length, _height / 2); // Number of points along the Y axis
-            float yStep = (float)_height / numPointsInHelix; // Ensure helix spans height
+            float centerX = _width * parameters.CenterX;
+            int numPointsInHelix = Math.Min(samples.Length, parameters.HelixPoints);
+            float yStep = (float)_height / numPointsInHelix;
             Debug.WriteLine(
                 $"AudioVisualizerEngine.DrawDNAHelix - CenterX: {centerX}, Points in Helix: {numPointsInHelix}, Y-Step: {yStep}"
             );
@@ -916,21 +1139,19 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             for (int i = 0; i < numPointsInHelix; i++)
             {
                 float y = i * yStep;
-                float phase = y * 0.02f + _frameCount * 0.05f;
+                float phase = y * parameters.WaveFrequency + _frameCount * parameters.HelixSpeed;
 
-                // Ensure sample index is within bounds
-                int sampleIndex = i * samples.Length / numPointsInHelix; // Map i to sample index
+                int sampleIndex = i * samples.Length / numPointsInHelix;
 
-                float x1 =
-                    centerX + (float)Math.Sin(phase) * (50 + samples[sampleIndex] * (_width / 8f)); // Scale radius
-                float x2 =
-                    centerX
-                    + (float)Math.Sin(phase + Math.PI)
-                        * (50 + samples[sampleIndex] * (_width / 8f));
+                float radiusModifier =
+                    parameters.HelixRadius
+                    + samples[sampleIndex] * (_width * parameters.RadiusAmplitudeMultiplier);
+                float x1 = centerX + (float)Math.Sin(phase) * radiusModifier;
+                float x2 = centerX + (float)Math.Sin(phase + Math.PI) * radiusModifier;
 
                 float intensity = Math.Abs(samples[sampleIndex]) * 2f;
-                var color1 = GetColor(colorMode, intensity, phase % 1f); // Vary color by phase for strand 1
-                var color2 = GetColor(colorMode, intensity, (phase + 0.5f) % 1f); // Vary color for strand 2
+                var color1 = GetColor(colorMode, intensity, phase % 1f);
+                var color2 = GetColor(colorMode, intensity, (phase + 0.5f) % 1f);
 
                 if (i < 2)
                     Debug.WriteLine(
@@ -940,11 +1161,24 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                 using (var brush1 = new SolidBrush(color1))
                 using (var brush2 = new SolidBrush(color2))
                 {
-                    g.FillEllipse(brush1, x1 - 5, y - 5, 10, 10);
-                    g.FillEllipse(brush2, x2 - 5, y - 5, 10, 10);
+                    float halfNodeSize = parameters.NodeSize / 2;
+                    g.FillEllipse(
+                        brush1,
+                        x1 - halfNodeSize,
+                        y - halfNodeSize,
+                        parameters.NodeSize,
+                        parameters.NodeSize
+                    );
+                    g.FillEllipse(
+                        brush2,
+                        x2 - halfNodeSize,
+                        y - halfNodeSize,
+                        parameters.NodeSize,
+                        parameters.NodeSize
+                    );
                 }
 
-                if (i % (numPointsInHelix / 20 + 1) == 0) // Adjust connection frequency
+                if (parameters.DrawConnections && i % parameters.ConnectionFrequency == 0)
                 {
                     using (
                         var pen = new Pen(
@@ -963,7 +1197,12 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             Debug.WriteLine("AudioVisualizerEngine.DrawDNAHelix - Finished drawing helix.");
         }
 
-        private void DrawAurora(Graphics g, float[] samples, ColorMode colorMode)
+        private void DrawAurora(
+            Graphics g,
+            float[] samples,
+            ColorMode colorMode,
+            AuroraParameters parameters
+        )
         {
             Debug.WriteLine(
                 $"AudioVisualizerEngine.DrawAurora - Drawing with {samples.Length} samples."
@@ -974,40 +1213,52 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                 return;
             }
 
-            int bandCount = 5 + (int)(_smoothMid * 5); // Dynamic band count
-            bandCount = Math.Max(3, Math.Min(bandCount, 10)); // Clamp band count
+            int bandCount =
+                parameters.MinBands
+                + (int)(_smoothMid * (parameters.MaxBands - parameters.MinBands));
+            bandCount = Math.Max(parameters.MinBands, Math.Min(bandCount, parameters.MaxBands));
             Debug.WriteLine($"AudioVisualizerEngine.DrawAurora - BandCount: {bandCount}");
 
             for (int band = 0; band < bandCount; band++)
             {
                 var points = new List<PointF>();
-                int pointStep = 10; // Density of points for the curve
+                int pointStep = 10;
 
-                for (int x = 0; x <= _width; x += pointStep) // ensure x goes to _width
+                for (int x = 0; x <= _width; x += pointStep)
                 {
-                    float baseY = _height * (0.2f + (float)band / bandCount * 0.5f); // Spread bands more evenly
+                    float baseY =
+                        _height * (0.2f + (float)band / bandCount * parameters.BandSpread);
                     float wave1 =
                         (float)
                             Math.Sin(
                                 x * (0.005f + band * 0.001f)
-                                    + _frameCount * (0.01f + _smoothBass * 0.01f)
+                                    + _frameCount
+                                        * (
+                                            parameters.WaveSpeed
+                                            + _smoothBass * parameters.WaveSpeed
+                                        )
                                     + band
-                            ) * (_height * 0.1f);
+                            ) * (_height * parameters.WaveAmplitude);
                     float wave2 =
                         (float)
                             Math.Sin(
                                 x * (0.003f - band * 0.0005f)
-                                    - _frameCount * (0.005f + _smoothHigh * 0.01f)
+                                    - _frameCount
+                                        * (
+                                            parameters.WaveSpeed * 0.5f
+                                            + _smoothHigh * parameters.WaveSpeed
+                                        )
                                     + band * 0.5f
-                            ) * (_height * 0.05f);
+                            ) * (_height * parameters.WaveAmplitude * 0.5f);
 
-                    int sampleIndex = Math.Min(samples.Length - 1, (x * samples.Length) / _width); // Ensure valid index
+                    int sampleIndex = Math.Min(samples.Length - 1, (x * samples.Length) / _width);
                     if (sampleIndex < 0)
                         sampleIndex = 0;
 
-                    float audioInfluence = samples[sampleIndex] * (_height * 0.15f); // Audio influences height
+                    float audioInfluence =
+                        samples[sampleIndex] * (_height * parameters.AudioAmplitude);
                     float y = baseY + wave1 + wave2 + audioInfluence;
-                    y = Math.Max(0, Math.Min(_height, y)); // Clamp Y to screen bounds
+                    y = Math.Max(0, Math.Min(_height, y));
                     points.Add(new PointF(x, y));
                 }
                 if (band == 0 && points.Count > 0)
@@ -1024,7 +1275,6 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                             $"AudioVisualizerEngine.DrawAurora - Band {band}: Curve added to path with {points.Count} points."
                         );
 
-                        // Ensure path closes properly to form a fillable area
                         if (points.Any())
                         {
                             path.AddLine(points.Last(), new PointF(_width, _height));
@@ -1035,42 +1285,54 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                             );
                         }
 
-                        float intensity = 0.2f + (_smoothMid + _smoothBass) * 0.4f; // Intensity based on mid and bass
-                        intensity = Math.Min(1f, Math.Max(0.1f, intensity)); // Clamp intensity
+                        float intensity =
+                            parameters.IntensityBase
+                            + (_smoothMid + _smoothBass) * parameters.IntensityMultiplier;
+                        intensity = Math.Min(1f, Math.Max(0.1f, intensity));
 
                         var baseColor = GetColor(
                             colorMode,
                             intensity,
                             (float)band / bandCount + _frameCount * 0.002f
-                        ); // Time-varying color
-                        Color topColor = Color.FromArgb(
-                            Math.Min(255, Math.Max(0, (int)(intensity * 150))),
-                            baseColor
-                        ); // More transparent at top
-                        Color bottomColor = Color.FromArgb(0, baseColor); // Fully transparent at bottom
+                        );
 
-                        if (points.First().Y < _height && points.Last().Y < _height) // Only draw if reasonable
+                        if (parameters.EnableGradient)
                         {
-                            using (
-                                var brush = new System.Drawing.Drawing2D.LinearGradientBrush(
-                                    new PointF(0, points.Min(p => p.Y)), // Gradient starts from the top of the curve
-                                    new PointF(0, _height), // Gradient ends at the bottom of the screen
-                                    topColor,
-                                    bottomColor
-                                )
-                            )
+                            Color topColor = Color.FromArgb(
+                                Math.Min(255, Math.Max(0, (int)(intensity * 150))),
+                                baseColor
+                            );
+                            Color bottomColor = Color.FromArgb(0, baseColor);
+
+                            if (points.First().Y < _height && points.Last().Y < _height)
                             {
-                                g.FillPath(brush, path);
-                                Debug.WriteLine(
-                                    $"AudioVisualizerEngine.DrawAurora - Band {band}: Path filled. Intensity: {intensity}, TopColor: {topColor}"
-                                );
+                                using (
+                                    var brush = new System.Drawing.Drawing2D.LinearGradientBrush(
+                                        new PointF(0, points.Min(p => p.Y)),
+                                        new PointF(0, _height),
+                                        topColor,
+                                        bottomColor
+                                    )
+                                )
+                                {
+                                    g.FillPath(brush, path);
+                                    Debug.WriteLine(
+                                        $"AudioVisualizerEngine.DrawAurora - Band {band}: Path filled with gradient. Intensity: {intensity}, TopColor: {topColor}"
+                                    );
+                                }
                             }
                         }
                         else
                         {
-                            Debug.WriteLine(
-                                $"AudioVisualizerEngine.DrawAurora - Band {band}: Skipped filling due to extreme Y values. MinY: {points.Min(p => p.Y)}, MaxY: {points.Max(p => p.Y)}"
-                            );
+                            // Solid fill without gradient
+                            using (
+                                var brush = new SolidBrush(
+                                    Color.FromArgb((int)(intensity * 100), baseColor)
+                                )
+                            )
+                            {
+                                g.FillPath(brush, path);
+                            }
                         }
                     }
                 }

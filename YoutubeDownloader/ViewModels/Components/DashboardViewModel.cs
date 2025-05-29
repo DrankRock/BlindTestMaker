@@ -12,6 +12,7 @@ using CommunityToolkit.Mvvm.Input;
 using Gress;
 using Gress.Completable;
 using WebKit;
+using YoutubeDownloader.Converters;
 using YoutubeDownloader.Core.AudioVisualisation;
 using YoutubeDownloader.Core.Downloading;
 using YoutubeDownloader.Core.Resolving;
@@ -766,32 +767,35 @@ public partial class DashboardViewModel : ViewModelBase
             return;
         }
 
-        // --- MODIFICATION: Show AudioVisualizationSettingsDialog ----
+        // Show AudioVisualizationSettingsDialog
         Debug.WriteLine(
             "[VideoGen.GenerateVideo] Creating and showing AudioVisualizationSettingsViewModel dialog."
         );
-        // Assuming _viewModelManager can create this.
-        // For example, if you have a _viewModelManager.Create<AudioVisualizationSettingsViewModel>()
-        // or a specific _viewModelManager.CreateAudioVisualizationSettingsViewModel()
         var audioSettingsViewModel = _viewModelManager.CreateAudioVisualizationSettingsViewModel();
         await _dialogManager.ShowDialogAsync(audioSettingsViewModel);
         Debug.WriteLine(
             "[VideoGen.GenerateVideo] AudioVisualizationSettingsViewModel dialog closed."
         );
-        // --- END MODIFICATION ---
 
         IsBusy = true;
         Debug.WriteLine("[VideoGen.GenerateVideo] IsBusy set to true.");
 
         try
         {
-            // --- MODIFICATION: Retrieve selected modes from SettingsService ---
+            // Retrieve selected modes from SettingsService
             VisualizationMode selectedVisualizationMode = _settingsService.VisualizationMode;
             ColorMode selectedColorMode = _settingsService.ColorMode;
             Debug.WriteLine(
                 $"[VideoGen.GenerateVideo] Using VisualizationMode: {selectedVisualizationMode}, ColorMode: {selectedColorMode} from settings."
             );
-            // --- END MODIFICATION ---
+
+            // Create visualization parameters from settings
+            var visualizationParameters = VisualizationParametersFromSettings.CreateFromSettings(
+                _settingsService
+            );
+            Debug.WriteLine(
+                $"[VideoGen.GenerateVideo] Created visualization parameters of type: {visualizationParameters.GetType().Name}"
+            );
 
             _snackbarManager.Notify("Starting video generation process...");
             Debug.WriteLine(
@@ -808,7 +812,6 @@ public partial class DashboardViewModel : ViewModelBase
                     "[VideoGen.GenerateVideo] CombineAudioFiles returned null or empty path. Notifying and returning."
                 );
                 _snackbarManager.Notify("Failed to combine audio files.");
-                // IsBusy will be set to false in the finally block.
                 return;
             }
             Debug.WriteLine(
@@ -822,15 +825,14 @@ public partial class DashboardViewModel : ViewModelBase
                 "[VideoGen.GenerateVideo] Notified: Audio combined, generating video..."
             );
 
-            // Step 2: Generate synthwave video
+            // Step 2: Generate synthwave video with custom parameters
             Debug.WriteLine("[VideoGen.GenerateVideo] Calling GenerateSynthwaveVideo...");
-            // --- MODIFICATION: Pass selected modes to GenerateSynthwaveVideo ---
             await GenerateSynthwaveVideo(
                 combinedAudioPath,
                 selectedVisualizationMode,
-                selectedColorMode
+                selectedColorMode,
+                visualizationParameters
             );
-            // --- END MODIFICATION ---
             Debug.WriteLine("[VideoGen.GenerateVideo] GenerateSynthwaveVideo completed.");
 
             _snackbarManager.Notify("Synthwave video generated successfully!");
@@ -1208,7 +1210,8 @@ public partial class DashboardViewModel : ViewModelBase
     private async Task GenerateSynthwaveVideo(
         string combinedAudioPath,
         VisualizationMode visualizationMode,
-        ColorMode colorMode
+        ColorMode colorMode,
+        VisualizationParameters visualizationParameters = null
     )
     {
         Debug.WriteLine(
@@ -1222,7 +1225,6 @@ public partial class DashboardViewModel : ViewModelBase
             _snackbarManager.Notify("Error: Combined audio file not found for video generation.");
             throw new FileNotFoundException("Combined audio file not found.", combinedAudioPath);
         }
-
         try
         {
             // Create output directory if it doesn't exist
@@ -1256,15 +1258,33 @@ public partial class DashboardViewModel : ViewModelBase
                 $"[VideoGen.GenerateSynthwaveVideo] Using passed VisualizationMode: {visualizationMode}, ColorMode: {colorMode}"
             );
 
-            // Generate the visualization
+            // Log parameters if provided
+            if (visualizationParameters != null)
+            {
+                Debug.WriteLine(
+                    $"[VideoGen.GenerateSynthwaveVideo] Using custom visualization parameters of type: {visualizationParameters.GetType().Name}"
+                );
+            }
+            else
+            {
+                Debug.WriteLine(
+                    "[VideoGen.GenerateSynthwaveVideo] No custom parameters provided, will use defaults."
+                );
+            }
+
+            // Generate the visualization with parameters
             Debug.WriteLine(
                 $"[VideoGen.GenerateSynthwaveVideo] Calling visualizer.CreateVisualization for: {combinedAudioPath}"
             );
-            await visualizer.CreateVisualization(combinedAudioPath, visualizationMode, colorMode); // Use parameters here
+            await visualizer.CreateVisualization(
+                combinedAudioPath,
+                visualizationMode,
+                colorMode,
+                visualizationParameters
+            );
             Debug.WriteLine(
                 "[VideoGen.GenerateSynthwaveVideo] visualizer.CreateVisualization completed."
             );
-
             Debug.WriteLine(
                 $"[VideoGen.GenerateSynthwaveVideo] Synthwave video should be created at: {outputPath}"
             );
