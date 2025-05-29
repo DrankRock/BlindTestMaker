@@ -76,6 +76,9 @@
     <TrimmerRootAssembly Include="WebView.Core" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Update="Views\Dialogs\AudioVisualizationSettingsView.axaml.cs">
+      <DependentUpon>AudioVisualizationSettingsView.axaml</DependentUpon>
+    </Compile>
     <Compile Update="Views\Dialogs\ConfirmationDialogView.axaml.cs">
       <DependentUpon>ConfirmationDialogView.axaml</DependentUpon>
     </Compile>
@@ -91,5 +94,13 @@
   <Target Name="PublishMacOSBundle" AfterTargets="Publish" Condition="$(PublishMacOSBundle)">
     <Exec Command="pwsh -ExecutionPolicy Bypass -File $(ProjectDir)/Publish-MacOSBundle.ps1 -PublishDirPath $(PublishDir) -IconsFilePath $(ProjectDir)/../favicon.icns -FullVersion $(Version) -ShortVersion $(AssemblyVersion)" LogStandardErrorAsError="true" />
   </Target>
+
+  <PropertyGroup>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+  </PropertyGroup>
+  
+  <PropertyGroup>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
 
 </Project>

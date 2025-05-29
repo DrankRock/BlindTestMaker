@@ -1,0 +1,511 @@
+<UserControl
+    x:Class="YoutubeDownloader.Views.Dialogs.AudioVisualizationSettingsView"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:dialogs="clr-namespace:YoutubeDownloader.ViewModels.Dialogs"
+    xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+    Width="480"
+    x:DataType="dialogs:AudioVisualizationSettingsViewModel">
+    <Grid RowDefinitions="Auto,*,Auto">
+        <TextBlock
+            Grid.Row="0"
+            Margin="16"
+            FontSize="19"
+            FontWeight="Light"
+            Text="Audio Visualization Settings" />
+
+        <Border
+            Grid.Row="1"
+            Padding="0,8"
+            BorderBrush="{DynamicResource MaterialDividerBrush}"
+            BorderThickness="0,1">
+            <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                <StackPanel Orientation="Vertical">
+                    
+                    <!-- Visualization Mode -->
+                    <DockPanel
+                        Margin="16,8"
+                        LastChildFill="False"
+                        ToolTip.Tip="Select the type of audio visualization to generate">
+                        <TextBlock DockPanel.Dock="Left" Text="Visualization Mode" />
+                        <ComboBox
+                            Width="180"
+                            DockPanel.Dock="Right"
+                            ItemsSource="{Binding AvailableVisualizationModes}"
+                            SelectedItem="{Binding VisualizationMode}" />
+                    </DockPanel>
+
+                    <!-- Color Mode -->
+                    <DockPanel
+                        Margin="16,8"
+                        LastChildFill="False"
+                        ToolTip.Tip="Select the color scheme for the visualization">
+                        <TextBlock DockPanel.Dock="Left" Text="Color Mode" />
+                        <ComboBox
+                            Width="180"
+                            DockPanel.Dock="Right"
+                            ItemsSource="{Binding AvailableColorModes}"
+                            SelectedItem="{Binding ColorMode}" />
+                    </DockPanel>
+
+                    <!-- Interval Between Videos -->
+                    <DockPanel
+                        Margin="16,8"
+                        LastChildFill="False"
+                        ToolTip.Tip="Number of seconds between each video when processing multiple files">
+                        <TextBlock DockPanel.Dock="Left" Text="Interval Between Videos (seconds)" />
+                        <NumericUpDown
+                            Width="100"
+                            DockPanel.Dock="Right"
+                            Maximum="300"
+                            Minimum="0"
+                            Value="{Binding IntervalBetweenVideos}" />
+                    </DockPanel>
+
+                    <!-- Background Video -->
+                    <StackPanel Margin="16,8" Orientation="Vertical">
+                        <DockPanel LastChildFill="False" ToolTip.Tip="Optional background video to overlay visualization on">
+                            <TextBlock DockPanel.Dock="Left" Text="Background Video" />
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="4">
+                                <Button
+                                    Padding="4"
+                                    Command="{Binding ClearBackgroundVideoCommand}"
+                                    IsEnabled="{Binding BackgroundVideoPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                    Theme="{DynamicResource MaterialFlatButton}"
+                                    ToolTip.Tip="Clear background video">
+                                    <materialIcons:MaterialIcon Kind="Close" Width="16" Height="16" />
+                                </Button>
+                                <Button
+                                    Padding="4"
+                                    Command="{Binding BrowseBackgroundVideoCommand}"
+                                    Theme="{DynamicResource MaterialFlatButton}"
+                                    ToolTip.Tip="Browse for background video">
+                                    <materialIcons:MaterialIcon Kind="FolderOpen" Width="16" Height="16" />
+                                </Button>
+                            </StackPanel>
+                        </DockPanel>
+                        <TextBox
+                            Margin="0,4,0,0"
+                            Text="{Binding BackgroundVideoPath}"
+                            Watermark="No background video selected"
+                            IsReadOnly="True"
+                            TextWrapping="Wrap"
+                            MaxLines="2"
+                            FontSize="12"
+                            Foreground="{DynamicResource MaterialBodyBrush}"
+                            Background="Transparent"
+                            BorderThickness="0" />
+                    </StackPanel>
+
+                    <!-- Background Image -->
+                    <StackPanel Margin="16,8" Orientation="Vertical">
+                        <DockPanel LastChildFill="False" ToolTip.Tip="Optional background image to overlay visualization on">
+                            <TextBlock DockPanel.Dock="Left" Text="Background Image" />
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="4">
+                                <Button
+                                    Padding="4"
+                                    Command="{Binding ClearBackgroundImageCommand}"
+                                    IsEnabled="{Binding BackgroundImagePath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                    Theme="{DynamicResource MaterialFlatButton}"
+                                    ToolTip.Tip="Clear background image">
+                                    <materialIcons:MaterialIcon Kind="Close" Width="16" Height="16" />
+                                </Button>
+                                <Button
+                                    Padding="4"
+                                    Command="{Binding BrowseBackgroundImageCommand}"
+                                    Theme="{DynamicResource MaterialFlatButton}"
+                                    ToolTip.Tip="Browse for background image">
+                                    <materialIcons:MaterialIcon Kind="Image" Width="16" Height="16" />
+                                </Button>
+                            </StackPanel>
+                        </DockPanel>
+                        <TextBox
+                            Margin="0,4,0,0"
+                            Text="{Binding BackgroundImagePath}"
+                            Watermark="No background image selected"
+                            IsReadOnly="True"
+                            TextWrapping="Wrap"
+                            MaxLines="2"
+                            FontSize="12"
+                            Foreground="{DynamicResource MaterialBodyBrush}"
+                            Background="Transparent"
+                            BorderThickness="0" />
+                    </StackPanel>
+
+                    <!-- Separator -->
+                    <Separator Margin="16,16,16,8" />
+                    <TextBlock 
+                        Margin="16,0,16,8" 
+                        FontWeight="SemiBold" 
+                        Text="Visualization Settings" 
+                        FontSize="14" />
+
+                    <!-- Common Settings -->
+                    <!-- Zoom Level -->
+                    <DockPanel
+                        Margin="16,8"
+                        LastChildFill="False"
+                        ToolTip.Tip="Zoom level for the visualization (0.1x to 5.0x)">
+                        <TextBlock DockPanel.Dock="Left" Text="Zoom Level" />
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                            <TextBlock Margin="10,0" Text="{Binding ZoomLevel, StringFormat='{}{0:F1}x'}" />
+                            <Slider
+                                Width="120"
+                                Maximum="5.0"
+                                Minimum="0.1"
+                                TickFrequency="0.1"
+                                Value="{Binding ZoomLevel}" />
+                        </StackPanel>
+                    </DockPanel>
+
+                    <!-- X Position -->
+                    <DockPanel
+                        Margin="16,8"
+                        LastChildFill="False"
+                        ToolTip.Tip="Horizontal position offset (-1.0 to 1.0)">
+                        <TextBlock DockPanel.Dock="Left" Text="X Position" />
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                            <TextBlock Margin="10,0" Text="{Binding XPosition, StringFormat='{}{0:F2}'}" />
+                            <Slider
+                                Width="120"
+                                Maximum="1.0"
+                                Minimum="-1.0"
+                                TickFrequency="0.1"
+                                Value="{Binding XPosition}" />
+                        </StackPanel>
+                    </DockPanel>
+
+                    <!-- Y Position -->
+                    <DockPanel
+                        Margin="16,8"
+                        LastChildFill="False"
+                        ToolTip.Tip="Vertical position offset (-1.0 to 1.0)">
+                        <TextBlock DockPanel.Dock="Left" Text="Y Position" />
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                            <TextBlock Margin="10,0" Text="{Binding YPosition, StringFormat='{}{0:F2}'}" />
+                            <Slider
+                                Width="120"
+                                Maximum="1.0"
+                                Minimum="-1.0"
+                                TickFrequency="0.1"
+                                Value="{Binding YPosition}" />
+                        </StackPanel>
+                    </DockPanel>
+
+                    <!-- Mode-Specific Settings -->
+
+                    <!-- Basic Waveform Settings -->
+                    <StackPanel IsVisible="{Binding IsBasicWaveformMode}" Orientation="Vertical">
+                        <TextBlock 
+                            Margin="16,16,16,8" 
+                            FontWeight="SemiBold" 
+                            Text="Waveform Settings" 
+                            FontSize="13" />
+                        
+                        <DockPanel
+                            Margin="16,8"
+                            LastChildFill="False"
+                            ToolTip.Tip="Amplitude multiplier for waveform display">
+                            <TextBlock DockPanel.Dock="Left" Text="Wave Amplitude" />
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <TextBlock Margin="10,0" Text="{Binding WaveAmplitude, StringFormat='{}{0:F1}x'}" />
+                                <Slider
+                                    Width="120"
+                                    Maximum="3.0"
+                                    Minimum="0.1"
+                                    TickFrequency="0.1"
+                                    Value="{Binding WaveAmplitude}" />
+                            </StackPanel>
+                        </DockPanel>
+
+                        <DockPanel
+                            Margin="16,8"
+                            LastChildFill="False"
+                            ToolTip.Tip="Frequency multiplier for waveform oscillation">
+                            <TextBlock DockPanel.Dock="Left" Text="Wave Frequency" />
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <TextBlock Margin="10,0" Text="{Binding WaveFrequency, StringFormat='{}{0:F1}x'}" />
+                                <Slider
+                                    Width="120"
+                                    Maximum="5.0"
+                                    Minimum="0.1"
+                                    TickFrequency="0.1"
+                                    Value="{Binding WaveFrequency}" />
+                            </StackPanel>
+                        </DockPanel>
+                    </StackPanel>
+
+                    <!-- Circular Wave Settings -->
+                    <StackPanel IsVisible="{Binding IsCircularWaveMode}" Orientation="Vertical">
+                        <TextBlock 
+                            Margin="16,16,16,8" 
+                            FontWeight="SemiBold" 
+                            Text="Circular Wave Settings" 
+                            FontSize="13" />
+                        
+                        <DockPanel
+                            Margin="16,8"
+                            LastChildFill="False"
+                            ToolTip.Tip="Amplitude multiplier for circular waves">
+                            <TextBlock DockPanel.Dock="Left" Text="Wave Amplitude" />
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <TextBlock Margin="10,0" Text="{Binding WaveAmplitude, StringFormat='{}{0:F1}x'}" />
+                                <Slider
+                                    Width="120"
+                                    Maximum="3.0"
+                                    Minimum="0.1"
+                                    TickFrequency="0.1"
+                                    Value="{Binding WaveAmplitude}" />
+                            </StackPanel>
+                        </DockPanel>
+                    </StackPanel>
+
+                    <!-- Spherical Pulse Settings -->
+                    <StackPanel IsVisible="{Binding IsSphericalPulseMode}" Orientation="Vertical">
+                        <TextBlock 
+                            Margin="16,16,16,8" 
+                            FontWeight="SemiBold" 
+                            Text="Spherical Pulse Settings" 
+                            FontSize="13" />
+                        
+                        <DockPanel
+                            Margin="16,8"
+                            LastChildFill="False"
+                            ToolTip.Tip="Diameter of the spherical pulse visualization">
+                            <TextBlock DockPanel.Dock="Left" Text="Sphere Diameter" />
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <TextBlock Margin="10,0" Text="{Binding SphereDiameter, StringFormat='{}{0:F1}'}" />
+                                <Slider
+                                    Width="120"
+                                    Maximum="2.0"
+                                    Minimum="0.1"
+                                    TickFrequency="0.1"
+                                    Value="{Binding SphereDiameter}" />
+                            </StackPanel>
+                        </DockPanel>
+                    </StackPanel>
+
+                    <!-- Spectrum Bars Settings -->
+                    <StackPanel IsVisible="{Binding IsSpectrumBarsMode}" Orientation="Vertical">
+                        <TextBlock 
+                            Margin="16,16,16,8" 
+                            FontWeight="SemiBold" 
+                            Text="Spectrum Bars Settings" 
+                            FontSize="13" />
+                        
+                        <DockPanel
+                            Margin="16,8"
+                            LastChildFill="False"
+                            ToolTip.Tip="Number of frequency bars to display">
+                            <TextBlock DockPanel.Dock="Left" Text="Bar Count" />
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <TextBlock Margin="10,0" Text="{Binding BarCount}" />
+                                <Slider
+                                    Width="120"
+                                    IsSnapToTickEnabled="True"
+                                    Maximum="200"
+                                    Minimum="10"
+                                    TickFrequency="10"
+                                    Value="{Binding BarCount}" />
+                            </StackPanel>
+                        </DockPanel>
+
+                        <DockPanel
+                            Margin="16,8"
+                            LastChildFill="False"
+                            ToolTip.Tip="Spacing between frequency bars">
+                            <TextBlock DockPanel.Dock="Left" Text="Bar Spacing" />
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <TextBlock Margin="10,0" Text="{Binding BarSpacing, StringFormat='{}{0:F1}x'}" />
+                                <Slider
+                                    Width="120"
+                                    Maximum="2.0"
+                                    Minimum="0.1"
+                                    TickFrequency="0.1"
+                                    Value="{Binding BarSpacing}" />
+                            </StackPanel>
+                        </DockPanel>
+                    </StackPanel>
+
+                    <!-- Particle Flow Settings -->
+                    <StackPanel IsVisible="{Binding IsParticleFlowMode}" Orientation="Vertical">
+                        <TextBlock 
+                            Margin="16,16,16,8" 
+                            FontWeight="SemiBold" 
+                            Text="Particle Flow Settings" 
+                            FontSize="13" />
+                        
+                        <DockPanel
+                            Margin="16,8"
+                            LastChildFill="False"
+                            ToolTip.Tip="Number of particles in the visualization">
+                            <TextBlock DockPanel.Dock="Left" Text="Particle Count" />
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <TextBlock Margin="10,0" Text="{Binding ParticleCount}" />
+                                <Slider
+                                    Width="120"
+                                    IsSnapToTickEnabled="True"
+                                    Maximum="2000"
+                                    Minimum="50"
+                                    TickFrequency="50"
+                                    Value="{Binding ParticleCount}" />
+                            </StackPanel>
+                        </DockPanel>
+
+                        <DockPanel
+                            Margin="16,8"
+                            LastChildFill="False"
+                            ToolTip.Tip="Speed multiplier for particle movement">
+                            <TextBlock DockPanel.Dock="Left" Text="Particle Speed" />
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <TextBlock Margin="10,0" Text="{Binding ParticleSpeed, StringFormat='{}{0:F1}x'}" />
+                                <Slider
+                                    Width="120"
+                                    Maximum="3.0"
+                                    Minimum="0.1"
+                                    TickFrequency="0.1"
+                                    Value="{Binding ParticleSpeed}" />
+                            </StackPanel>
+                        </DockPanel>
+                    </StackPanel>
+
+                    <!-- Kaleidoscope Wave Settings -->
+                    <StackPanel IsVisible="{Binding IsKaleidoscopeWaveMode}" Orientation="Vertical">
+                        <TextBlock 
+                            Margin="16,16,16,8" 
+                            FontWeight="SemiBold" 
+                            Text="Kaleidoscope Settings" 
+                            FontSize="13" />
+                        
+                        <DockPanel
+                            Margin="16,8"
+                            LastChildFill="False"
+                            ToolTip.Tip="Number of kaleidoscope segments">
+                            <TextBlock DockPanel.Dock="Left" Text="Segments" />
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <TextBlock Margin="10,0" Text="{Binding KaleidoscopeSegments}" />
+                                <Slider
+                                    Width="120"
+                                    IsSnapToTickEnabled="True"
+                                    Maximum="12"
+                                    Minimum="3"
+                                    TickFrequency="1"
+                                    Value="{Binding KaleidoscopeSegments}" />
+                            </StackPanel>
+                        </DockPanel>
+
+                        <DockPanel
+                            Margin="16,8"
+                            LastChildFill="False"
+                            ToolTip.Tip="Rotation speed multiplier">
+                            <TextBlock DockPanel.Dock="Left" Text="Rotation Speed" />
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <TextBlock Margin="10,0" Text="{Binding RotationSpeed, StringFormat='{}{0:F1}x'}" />
+                                <Slider
+                                    Width="120"
+                                    Maximum="5.0"
+                                    Minimum="0.1"
+                                    TickFrequency="0.1"
+                                    Value="{Binding RotationSpeed}" />
+                            </StackPanel>
+                        </DockPanel>
+                    </StackPanel>
+
+                    <!-- DNA Helix Settings -->
+                    <StackPanel IsVisible="{Binding IsDNAHelixMode}" Orientation="Vertical">
+                        <TextBlock 
+                            Margin="16,16,16,8" 
+                            FontWeight="SemiBold" 
+                            Text="DNA Helix Settings" 
+                            FontSize="13" />
+                        
+                        <DockPanel
+                            Margin="16,8"
+                            LastChildFill="False"
+                            ToolTip.Tip="Radius of the DNA helix structure">
+                            <TextBlock DockPanel.Dock="Left" Text="Helix Radius" />
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <TextBlock Margin="10,0" Text="{Binding HelixRadius, StringFormat='{}{0:F2}'}" />
+                                <Slider
+                                    Width="120"
+                                    Maximum="1.0"
+                                    Minimum="0.1"
+                                    TickFrequency="0.05"
+                                    Value="{Binding HelixRadius}" />
+                            </StackPanel>
+                        </DockPanel>
+
+                        <DockPanel
+                            Margin="16,8"
+                            LastChildFill="False"
+                            ToolTip.Tip="Pitch (height per turn) of the DNA helix">
+                            <TextBlock DockPanel.Dock="Left" Text="Helix Pitch" />
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <TextBlock Margin="10,0" Text="{Binding HelixPitch, StringFormat='{}{0:F1}'}" />
+                                <Slider
+                                    Width="120"
+                                    Maximum="2.0"
+                                    Minimum="0.1"
+                                    TickFrequency="0.1"
+                                    Value="{Binding HelixPitch}" />
+                            </StackPanel>
+                        </DockPanel>
+                    </StackPanel>
+
+                    <!-- Aurora Settings -->
+                    <StackPanel IsVisible="{Binding IsAuroraMode}" Orientation="Vertical">
+                        <TextBlock 
+                            Margin="16,16,16,8" 
+                            FontWeight="SemiBold" 
+                            Text="Aurora Settings" 
+                            FontSize="13" />
+                        
+                        <DockPanel
+                            Margin="16,8"
+                            LastChildFill="False"
+                            ToolTip.Tip="Intensity of the aurora effect">
+                            <TextBlock DockPanel.Dock="Left" Text="Aurora Intensity" />
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <TextBlock Margin="10,0" Text="{Binding AuroraIntensity, StringFormat='{}{0:F1}x'}" />
+                                <Slider
+                                    Width="120"
+                                    Maximum="2.0"
+                                    Minimum="0.1"
+                                    TickFrequency="0.1"
+                                    Value="{Binding AuroraIntensity}" />
+                            </StackPanel>
+                        </DockPanel>
+
+                        <DockPanel
+                            Margin="16,8"
+                            LastChildFill="False"
+                            ToolTip.Tip="Speed of aurora flow and movement">
+                            <TextBlock DockPanel.Dock="Left" Text="Flow Speed" />
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <TextBlock Margin="10,0" Text="{Binding AuroraFlowSpeed, StringFormat='{}{0:F1}x'}" />
+                                <Slider
+                                    Width="120"
+                                    Maximum="3.0"
+                                    Minimum="0.1"
+                                    TickFrequency="0.1"
+                                    Value="{Binding AuroraFlowSpeed}" />
+                            </StackPanel>
+                        </DockPanel>
+                    </StackPanel>
+
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+
+        <!-- Close button -->
+        <Button
+            Grid.Row="2"
+            Margin="16"
+            HorizontalAlignment="Stretch"
+            Command="{Binding CloseCommand}"
+            Content="CLOSE"
+            IsCancel="True"
+            IsDefault="True"
+            Theme="{DynamicResource MaterialOutlineButton}" />
+    </Grid>
+</UserControl>

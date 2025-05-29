@@ -57,6 +57,7 @@ public class App : Application, IDisposable
         services.AddTransient<SettingsViewModel>();
         services.AddTransient<ConfirmationDialogViewModel>();
         services.AddTransient<WorkingDirectoryDialogViewModel>();
+        services.AddTransient<AudioVisualizationSettingsViewModel>();
 
         _services = services.BuildServiceProvider(true);
         _settingsService = _services.GetRequiredService<SettingsService>();

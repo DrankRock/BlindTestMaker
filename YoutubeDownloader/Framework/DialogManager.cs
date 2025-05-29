@@ -45,6 +45,66 @@ public class DialogManager : IDisposable
         }
     }
 
+    /// <summary>
+    /// Shows a file picker dialog to select an existing file
+    /// </summary>
+    /// <param name="title">The title for the file picker dialog</param>
+    /// <param name="defaultFilePath">The default file path to start in</param>
+    /// <param name="fileTypes">Array of file type filters in format "Description|*.ext1;*.ext2"</param>
+    /// <returns>The selected file path or null if canceled</returns>
+    public async Task<string?> ShowFilePickerAsync(
+        string title,
+        string defaultFilePath = "",
+        string[]? fileTypes = null
+    )
+    {
+        var topLevel =
+            Application.Current?.ApplicationLifetime?.TryGetTopLevel()
+            ?? throw new ApplicationException("Could not find the top-level visual element.");
+
+        // Convert string array to FilePickerFileType list
+        List<FilePickerFileType>? filePickerTypes = null;
+        if (fileTypes != null)
+        {
+            filePickerTypes = new List<FilePickerFileType>();
+            foreach (var fileType in fileTypes)
+            {
+                var parts = fileType.Split('|');
+                if (parts.Length == 2)
+                {
+                    var patterns = parts[1].Split(';');
+                    filePickerTypes.Add(new FilePickerFileType(parts[0]) { Patterns = patterns });
+                }
+            }
+        }
+
+        // Try to get the folder from the default path if provided
+        IStorageFolder? startLocation = null;
+        if (!string.IsNullOrEmpty(defaultFilePath) && File.Exists(defaultFilePath))
+        {
+            var directory = Path.GetDirectoryName(defaultFilePath);
+            if (!string.IsNullOrEmpty(directory) && Directory.Exists(directory))
+            {
+                startLocation = await topLevel.StorageProvider.TryGetFolderFromPathAsync(directory);
+            }
+        }
+
+        // Create file picker options
+        var options = new FilePickerOpenOptions
+        {
+            AllowMultiple = false,
+            Title = title,
+            SuggestedStartLocation = startLocation,
+            FileTypeFilter = filePickerTypes,
+        };
+
+        // Open the file picker
+        var files = await topLevel.StorageProvider.OpenFilePickerAsync(options);
+
+        // Return the first file's path or null if none was selected
+        return files.FirstOrDefault()?.Path.LocalPath;
+    }
+
     public async Task<string?> PromptSaveFilePathAsync(
         IReadOnlyList<FilePickerFileType>? fileTypes = null,
         string defaultFilePath = ""

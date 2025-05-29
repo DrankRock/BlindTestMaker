@@ -24,6 +24,7 @@ public partial class ViewManager
             MediaPlayerViewModel => new MediaPlayerView(),
             ConfirmationDialogViewModel => new ConfirmDialogView(),
             WorkingDirectoryDialogViewModel => new WorkingDirectoryDialogView(),
+            AudioVisualizationSettingsViewModel => new AudioVisualizationSettingsView(),
             _ => null,
         };
 

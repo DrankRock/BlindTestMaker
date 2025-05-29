@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Microsoft.Extensions.DependencyInjection;
 using YoutubeDownloader.Core.Downloading;
 using YoutubeDownloader.Core.Utils.Extensions;
+using YoutubeDownloader.Services;
 using YoutubeDownloader.ViewModels;
 using YoutubeDownloader.ViewModels.Components;
 using YoutubeDownloader.ViewModels.Dialogs;
@@ -75,6 +76,9 @@ public class ViewModelManager(IServiceProvider services)
         viewModel.AvailableDownloadOptions = availableDownloadOptions;
         return viewModel;
     }
+
+    public AudioVisualizationSettingsViewModel CreateAudioVisualizationSettingsViewModel() =>
+        services.GetRequiredService<AudioVisualizationSettingsViewModel>();
 
     public MessageBoxViewModel CreateMessageBoxViewModel(
         string title,

@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Cogwheel;
 using CommunityToolkit.Mvvm.ComponentModel;
+using YoutubeDownloader.Core.AudioVisualisation;
 using YoutubeDownloader.Core.Downloading;
 using YoutubeDownloader.Framework;
 using Container = YoutubeExplode.Videos.Streams.Container;
@@ -63,6 +64,81 @@ public partial class SettingsService()
     // Add property for the working directory
     [ObservableProperty]
     public partial string? LastWorkingDirectory { get; set; }
+
+    #region video generation
+    [ObservableProperty]
+    public partial VisualizationMode VisualizationMode { get; set; } =
+        VisualizationMode.BasicWaveform;
+
+    [ObservableProperty]
+    public partial ColorMode ColorMode { get; set; } = ColorMode.Rainbow;
+
+    [ObservableProperty]
+    public partial int IntervalBetweenVideos { get; set; } = 0;
+
+    [ObservableProperty]
+    public partial string? BackgroundVideoPath { get; set; }
+
+    [ObservableProperty]
+    public partial string? BackgroundImagePath { get; set; }
+
+    // Common visualization settings
+    [ObservableProperty]
+    public partial double ZoomLevel { get; set; } = 1.0;
+
+    [ObservableProperty]
+    public partial double XPosition { get; set; } = 0.0;
+
+    [ObservableProperty]
+    public partial double YPosition { get; set; } = 0.0;
+
+    // Spherical-specific settings
+    [ObservableProperty]
+    public partial double SphereDiameter { get; set; } = 1.0;
+
+    // Waveform-specific settings
+    [ObservableProperty]
+    public partial double WaveAmplitude { get; set; } = 1.0;
+
+    [ObservableProperty]
+    public partial double WaveFrequency { get; set; } = 1.0;
+
+    // Spectrum bars settings
+    [ObservableProperty]
+    public partial int BarCount { get; set; } = 50;
+
+    [ObservableProperty]
+    public partial double BarSpacing { get; set; } = 1.0;
+
+    // Particle settings
+    [ObservableProperty]
+    public partial int ParticleCount { get; set; } = 500;
+
+    [ObservableProperty]
+    public partial double ParticleSpeed { get; set; } = 1.0;
+
+    // Kaleidoscope settings
+    [ObservableProperty]
+    public partial int KaleidoscopeSegments { get; set; } = 6;
+
+    [ObservableProperty]
+    public partial double RotationSpeed { get; set; } = 1.0;
+
+    // DNA Helix settings
+    [ObservableProperty]
+    public partial double HelixRadius { get; set; } = 0.5;
+
+    [ObservableProperty]
+    public partial double HelixPitch { get; set; } = 1.0;
+
+    // Aurora settings
+    [ObservableProperty]
+    public partial double AuroraIntensity { get; set; } = 1.0;
+
+    [ObservableProperty]
+    public partial double AuroraFlowSpeed { get; set; } = 1.0;
+
+    #endregion
 
     public override void Save()
     {
