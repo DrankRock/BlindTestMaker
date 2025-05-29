@@ -1051,16 +1051,20 @@ namespace YoutubeDownloader.Core.AudioVisualisation
         }
 
         private void DrawCircularSpectrumBars(
-    Graphics g,
-    ColorMode colorMode,
-    CircularSpectrumBarsParameters parameters
-)
+            Graphics g,
+            ColorMode colorMode,
+            CircularSpectrumBarsParameters parameters
+        )
         {
-            Debug.WriteLine("AudioVisualizerEngine.DrawCircularSpectrumBars - Drawing enhanced circular spectrum bars.");
+            Debug.WriteLine(
+                "AudioVisualizerEngine.DrawCircularSpectrumBars - Drawing enhanced circular spectrum bars."
+            );
 
             if (_fftBuffer == null || _fftBuffer.Length < 2)
             {
-                Debug.WriteLine("AudioVisualizerEngine.DrawCircularSpectrumBars - FFT buffer is null or too small.");
+                Debug.WriteLine(
+                    "AudioVisualizerEngine.DrawCircularSpectrumBars - FFT buffer is null or too small."
+                );
                 return;
             }
 
@@ -1081,17 +1085,24 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             try
             {
                 // 1. Image handling with better scaling and effects
-                float imageX = 0, imageY = 0, imageWidth = 0, imageHeight = 0;
+                float imageX = 0,
+                    imageY = 0,
+                    imageWidth = 0,
+                    imageHeight = 0;
                 bool shouldDrawImage = false;
 
-                if (!string.IsNullOrEmpty(parameters.CircleCenterFilePath) && File.Exists(parameters.CircleCenterFilePath))
+                if (
+                    !string.IsNullOrEmpty(parameters.CircleCenterFilePath)
+                    && File.Exists(parameters.CircleCenterFilePath)
+                )
                 {
                     try
                     {
                         centerImage = Image.FromFile(parameters.CircleCenterFilePath);
 
                         // Better image sizing calculation
-                        float targetImageDiameter = Math.Min(_width, _height) * parameters.BaseRadiusPercentage * 2.2f;
+                        float targetImageDiameter =
+                            Math.Min(_width, _height) * parameters.BaseRadiusPercentage * 2.2f;
                         float aspectRatio = (float)centerImage.Width / centerImage.Height;
 
                         if (aspectRatio > 1)
@@ -1112,7 +1123,9 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                         imageRadius = Math.Min(imageWidth, imageHeight) / 2.0f;
                         baseRadius = imageRadius * 1.15f; // Better spacing ratio
 
-                        Debug.WriteLine($"Enhanced image preparation - ImageRadius: {imageRadius}, BaseRadius: {baseRadius}");
+                        Debug.WriteLine(
+                            $"Enhanced image preparation - ImageRadius: {imageRadius}, BaseRadius: {baseRadius}"
+                        );
                     }
                     catch (Exception ex)
                     {
@@ -1130,19 +1143,59 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                 // 2. Enhanced FFT processing with better frequency distribution
                 var processedMagnitudes = ProcessFFTData(parameters);
 
-                // 3. Enhanced bar rendering with multiple visual effects
-                DrawSpectrumBarsWithEffects(g, colorMode, parameters, centerX, centerY, baseRadius, imageRadius, processedMagnitudes);
+                // 3. Choose rendering mode based on UseContinuousWaves parameter
+                if (parameters.UseContinuousWaves)
+                {
+                    DrawContinuousWaveSpectrum(
+                        g,
+                        colorMode,
+                        parameters,
+                        centerX,
+                        centerY,
+                        baseRadius,
+                        imageRadius,
+                        processedMagnitudes
+                    );
+                }
+                else
+                {
+                    DrawSpectrumBarsWithEffects(
+                        g,
+                        colorMode,
+                        parameters,
+                        centerX,
+                        centerY,
+                        baseRadius,
+                        imageRadius,
+                        processedMagnitudes
+                    );
+                }
 
                 // 4. Draw center image with enhanced effects
                 if (shouldDrawImage && centerImage != null)
                 {
-                    DrawCenterImageWithEffects(g, centerImage, imageX, imageY, imageWidth, imageHeight, parameters);
+                    DrawCenterImageWithEffects(
+                        g,
+                        centerImage,
+                        imageX,
+                        imageY,
+                        imageWidth,
+                        imageHeight,
+                        parameters
+                    );
                 }
 
                 // 5. Add optional particle effects around the spectrum
                 if (parameters.EnableGlow) // Reuse this flag for particle effects
                 {
-                    DrawParticleEffects(g, colorMode, centerX, centerY, baseRadius, processedMagnitudes);
+                    DrawParticleEffects(
+                        g,
+                        colorMode,
+                        centerX,
+                        centerY,
+                        baseRadius,
+                        processedMagnitudes
+                    );
                 }
             }
             finally
@@ -1152,7 +1205,382 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                 g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.Default;
             }
 
-            Debug.WriteLine("AudioVisualizerEngine.DrawCircularSpectrumBars - Enhanced rendering complete.");
+            Debug.WriteLine(
+                "AudioVisualizerEngine.DrawCircularSpectrumBars - Enhanced rendering complete."
+            );
+        }
+
+        private void DrawContinuousWaveSpectrum(
+            Graphics g,
+            ColorMode colorMode,
+            CircularSpectrumBarsParameters parameters,
+            float centerX,
+            float centerY,
+            float baseRadius,
+            float imageRadius,
+            float[] magnitudes
+        )
+        {
+            Debug.WriteLine(
+                "AudioVisualizerEngine.DrawContinuousWaveSpectrum - Drawing continuous wave spectrum."
+            );
+
+            // Create points for the continuous wave
+            var outerPoints = new List<PointF>();
+            var innerPoints = new List<PointF>();
+
+            // Add rotation animation
+            double rotationOffset = _frameCount * 0.002;
+
+            // Generate smooth wave points
+            for (int i = 0; i <= parameters.BarCount; i++) // <= to close the loop
+            {
+                int index = i % parameters.BarCount;
+                float magnitude = magnitudes[index];
+
+                // Smooth the magnitude with neighbors for continuous effect
+                if (i > 0 && i < parameters.BarCount)
+                {
+                    float prevMag = magnitudes[
+                        (index - 1 + parameters.BarCount) % parameters.BarCount
+                    ];
+                    float nextMag = magnitudes[(index + 1) % parameters.BarCount];
+                    magnitude = (prevMag * 0.25f + magnitude * 0.5f + nextMag * 0.25f);
+                }
+
+                float barHeight = magnitude * baseRadius * parameters.BarHeightScaleFactor;
+                barHeight = Math.Min(barHeight, baseRadius * parameters.MaxBarHeightRatio);
+                barHeight = Math.Max(0, barHeight);
+
+                double angle = (i * 2.0 * Math.PI / parameters.BarCount) + rotationOffset;
+
+                // Calculate outer point (wave peak)
+                float outerRadius = baseRadius + barHeight;
+                outerPoints.Add(
+                    new PointF(
+                        centerX + (float)(Math.Cos(angle) * outerRadius),
+                        centerY + (float)(Math.Sin(angle) * outerRadius)
+                    )
+                );
+
+                // Calculate inner point (base of wave)
+                float innerRadius = baseRadius;
+                innerPoints.Add(
+                    new PointF(
+                        centerX + (float)(Math.Cos(angle) * innerRadius),
+                        centerY + (float)(Math.Sin(angle) * innerRadius)
+                    )
+                );
+            }
+
+            // Create the wave path
+            using (var wavePath = new System.Drawing.Drawing2D.GraphicsPath())
+            {
+                // Add outer curve (the wave)
+                if (outerPoints.Count > 2)
+                {
+                    wavePath.AddCurve(outerPoints.ToArray(), 0.5f); // Tension for smoothness
+                }
+
+                // Close the path by connecting to inner circle
+                if (innerPoints.Count > 2)
+                {
+                    innerPoints.Reverse();
+                    wavePath.AddCurve(innerPoints.ToArray(), 0.5f);
+                }
+
+                wavePath.CloseFigure();
+
+                // Create gradient brush for the fill
+                using (
+                    var gradientBrush = CreateRadialGradientBrush(
+                        centerX,
+                        centerY,
+                        baseRadius,
+                        outerPoints,
+                        colorMode,
+                        magnitudes
+                    )
+                )
+                {
+                    // Fill the wave with gradient
+                    g.FillPath(gradientBrush, wavePath);
+                }
+
+                // Add glow effect if enabled
+                if (parameters.EnableGlow)
+                {
+                    using (var glowPath = (System.Drawing.Drawing2D.GraphicsPath)wavePath.Clone())
+                    {
+                        using (
+                            var glowBrush = new SolidBrush(
+                                Color.FromArgb((int)parameters.GlowIntensity, Color.White)
+                            )
+                        )
+                        {
+                            // Scale up slightly for glow
+                            var matrix = new System.Drawing.Drawing2D.Matrix();
+                            matrix.Translate(-centerX, -centerY);
+                            matrix.Scale(1.05f, 1.05f);
+                            matrix.Translate(centerX, centerY);
+                            glowPath.Transform(matrix);
+
+                            g.FillPath(glowBrush, glowPath);
+                        }
+                    }
+                }
+
+                // Draw wave outline for definition
+                var avgMagnitude = magnitudes.Average();
+                var outlineColor = GetEnhancedColor(
+                    colorMode,
+                    avgMagnitude,
+                    0.5f,
+                    baseRadius * 0.5f,
+                    baseRadius
+                );
+                using (var outlinePen = new Pen(Color.FromArgb(180, outlineColor), 2.0f))
+                {
+                    g.DrawPath(outlinePen, wavePath);
+                }
+            }
+
+            // Draw mirrored inner wave if enabled
+            if (parameters.MirrorBars && imageRadius > 0)
+            {
+                DrawContinuousInnerWave(
+                    g,
+                    colorMode,
+                    parameters,
+                    centerX,
+                    centerY,
+                    baseRadius,
+                    imageRadius,
+                    magnitudes
+                );
+            }
+        }
+
+        private void DrawContinuousInnerWave(
+            Graphics g,
+            ColorMode colorMode,
+            CircularSpectrumBarsParameters parameters,
+            float centerX,
+            float centerY,
+            float baseRadius,
+            float imageRadius,
+            float[] magnitudes
+        )
+        {
+            var innerWavePoints = new List<PointF>();
+            var innerBasePoints = new List<PointF>();
+
+            double rotationOffset = _frameCount * 0.002;
+            float innerWaveBase = Math.Max(imageRadius * 1.05f, baseRadius * 0.5f);
+
+            for (int i = 0; i <= parameters.BarCount; i++)
+            {
+                int index = i % parameters.BarCount;
+                float magnitude = magnitudes[index] * 0.7f; // Slightly reduced for inner wave
+
+                // Smooth the magnitude
+                if (i > 0 && i < parameters.BarCount)
+                {
+                    float prevMag =
+                        magnitudes[(index - 1 + parameters.BarCount) % parameters.BarCount] * 0.7f;
+                    float nextMag = magnitudes[(index + 1) % parameters.BarCount] * 0.7f;
+                    magnitude = (prevMag * 0.25f + magnitude * 0.5f + nextMag * 0.25f);
+                }
+
+                float waveHeight =
+                    magnitude * (baseRadius - innerWaveBase) * parameters.BarHeightScaleFactor;
+                waveHeight = Math.Min(waveHeight, (baseRadius - innerWaveBase) * 0.8f);
+
+                double angle = (i * 2.0 * Math.PI / parameters.BarCount) + rotationOffset;
+
+                // Inner wave peak (grows inward)
+                float innerRadius = innerWaveBase + waveHeight;
+                innerWavePoints.Add(
+                    new PointF(
+                        centerX + (float)(Math.Cos(angle) * innerRadius),
+                        centerY + (float)(Math.Sin(angle) * innerRadius)
+                    )
+                );
+
+                // Inner wave base
+                innerBasePoints.Add(
+                    new PointF(
+                        centerX + (float)(Math.Cos(angle) * innerWaveBase),
+                        centerY + (float)(Math.Sin(angle) * innerWaveBase)
+                    )
+                );
+            }
+
+            using (var innerPath = new System.Drawing.Drawing2D.GraphicsPath())
+            {
+                if (innerWavePoints.Count > 2)
+                {
+                    innerPath.AddCurve(innerWavePoints.ToArray(), 0.5f);
+                }
+
+                if (innerBasePoints.Count > 2)
+                {
+                    innerBasePoints.Reverse();
+                    innerPath.AddCurve(innerBasePoints.ToArray(), 0.5f);
+                }
+
+                innerPath.CloseFigure();
+
+                var avgMagnitude = magnitudes.Average() * 0.7f;
+                var innerColor = GetEnhancedColor(
+                    colorMode,
+                    avgMagnitude,
+                    0.3f,
+                    innerWaveBase * 0.3f,
+                    baseRadius
+                );
+
+                using (var innerBrush = new SolidBrush(Color.FromArgb(150, innerColor)))
+                {
+                    g.FillPath(innerBrush, innerPath);
+                }
+            }
+        }
+
+        private Brush CreateRadialGradientBrush(
+            float centerX,
+            float centerY,
+            float baseRadius,
+            List<PointF> outerPoints,
+            ColorMode colorMode,
+            float[] magnitudes
+        )
+        {
+            // Calculate the average outer radius for gradient
+            float avgOuterRadius = 0;
+            foreach (var point in outerPoints)
+            {
+                float dx = point.X - centerX;
+                float dy = point.Y - centerY;
+                avgOuterRadius += (float)Math.Sqrt(dx * dx + dy * dy);
+            }
+            avgOuterRadius /= outerPoints.Count;
+
+            var gradientPath = new System.Drawing.Drawing2D.GraphicsPath();
+            gradientPath.AddEllipse(
+                centerX - avgOuterRadius,
+                centerY - avgOuterRadius,
+                avgOuterRadius * 2,
+                avgOuterRadius * 2
+            );
+
+            var brush = new System.Drawing.Drawing2D.PathGradientBrush(gradientPath);
+
+            // Set center point
+            brush.CenterPoint = new PointF(centerX, centerY);
+
+            // Create color blend based on frequency magnitudes
+            var avgMagnitude = magnitudes.Average();
+            var maxMagnitude = magnitudes.Max();
+
+            var centerColor = GetEnhancedColor(
+                colorMode,
+                maxMagnitude,
+                0.5f,
+                avgOuterRadius - baseRadius,
+                baseRadius
+            );
+            var edgeColor = GetEnhancedColor(
+                colorMode,
+                avgMagnitude * 0.5f,
+                0.8f,
+                (avgOuterRadius - baseRadius) * 0.5f,
+                baseRadius
+            );
+
+            brush.CenterColor = Color.FromArgb(200, centerColor);
+            brush.SurroundColors = new Color[] { Color.FromArgb(100, edgeColor) };
+
+            // Add color blend for smooth gradient
+            var blend = new System.Drawing.Drawing2D.ColorBlend(3);
+            blend.Colors = new Color[]
+            {
+                Color.FromArgb(50, edgeColor),
+                Color.FromArgb(150, centerColor),
+                Color.FromArgb(200, centerColor),
+            };
+            blend.Positions = new float[] { 0.0f, 0.7f, 1.0f };
+            brush.InterpolationColors = blend;
+
+            return brush;
+        }
+
+        private Color GetDominantColor(List<Color> colors)
+        {
+            if (colors.Count == 0)
+                return Color.White;
+
+            // Calculate average color with proper weighting
+            float totalR = 0,
+                totalG = 0,
+                totalB = 0;
+            float totalWeight = 0;
+
+            foreach (var color in colors)
+            {
+                // Weight by brightness to favor more vibrant colors
+                float brightness = (color.R + color.G + color.B) / 765f;
+                float weight = 0.5f + brightness * 0.5f;
+
+                totalR += color.R * weight;
+                totalG += color.G * weight;
+                totalB += color.B * weight;
+                totalWeight += weight;
+            }
+
+            if (totalWeight > 0)
+            {
+                return Color.FromArgb(
+                    255,
+                    Math.Min(255, (int)(totalR / totalWeight)),
+                    Math.Min(255, (int)(totalG / totalWeight)),
+                    Math.Min(255, (int)(totalB / totalWeight))
+                );
+            }
+
+            return colors[colors.Count / 2]; // Fallback to middle color
+        }
+
+        private Color GetSecondaryColor(List<Color> colors, Color dominantColor)
+        {
+            if (colors.Count == 0)
+                return dominantColor;
+
+            // Find color most different from dominant
+            Color mostDifferent = colors[0];
+            float maxDifference = 0;
+
+            foreach (var color in colors)
+            {
+                float diff =
+                    Math.Abs(color.R - dominantColor.R)
+                    + Math.Abs(color.G - dominantColor.G)
+                    + Math.Abs(color.B - dominantColor.B);
+
+                if (diff > maxDifference)
+                {
+                    maxDifference = diff;
+                    mostDifferent = color;
+                }
+            }
+
+            // Blend it slightly with dominant for harmony
+            return Color.FromArgb(
+                255,
+                (mostDifferent.R + dominantColor.R) / 2,
+                (mostDifferent.G + dominantColor.G) / 2,
+                (mostDifferent.B + dominantColor.B) / 2
+            );
         }
 
         private float[] ProcessFFTData(CircularSpectrumBarsParameters parameters)
@@ -1201,7 +1629,9 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                 // Smooth with neighboring bars for more organic look
                 if (i > 0 && i < parameters.BarCount - 1)
                 {
-                    smoothedMagnitudes[i] = (magnitudes[i - 1] * 0.2f + magnitudes[i] * 0.6f + magnitudes[i + 1] * 0.2f);
+                    smoothedMagnitudes[i] = (
+                        magnitudes[i - 1] * 0.2f + magnitudes[i] * 0.6f + magnitudes[i + 1] * 0.2f
+                    );
                 }
             }
 
@@ -1216,7 +1646,8 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             float centerY,
             float baseRadius,
             float imageRadius,
-            float[] magnitudes)
+            float[] magnitudes
+        )
         {
             double anglePerBar = (2.0 * Math.PI) / parameters.BarCount;
             double barAngularWidth = anglePerBar * parameters.BarFillRatio;
@@ -1232,7 +1663,8 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                 barHeight = Math.Min(barHeight, baseRadius * parameters.MaxBarHeightRatio);
                 barHeight = Math.Max(0, barHeight);
 
-                if (barHeight < 0.5f) continue; // Skip tiny bars
+                if (barHeight < 0.5f)
+                    continue; // Skip tiny bars
 
                 // Enhanced angle calculations with rotation animation
                 double rotationOffset = _frameCount * 0.002; // Slow rotation
@@ -1241,10 +1673,23 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                 double barEndAngle = barCenterAngle + halfBarWidth;
 
                 // Calculate bar geometry with sub-pixel precision
-                var barGeometry = CalculateBarGeometry(centerX, centerY, baseRadius, barHeight, barStartAngle, barEndAngle);
+                var barGeometry = CalculateBarGeometry(
+                    centerX,
+                    centerY,
+                    baseRadius,
+                    barHeight,
+                    barStartAngle,
+                    barEndAngle
+                );
 
                 // Enhanced color calculation with more dynamic range
-                var barColor = GetEnhancedColor(colorMode, magnitude, (float)i / parameters.BarCount, barHeight, baseRadius);
+                var barColor = GetEnhancedColor(
+                    colorMode,
+                    magnitude,
+                    (float)i / parameters.BarCount,
+                    barHeight,
+                    baseRadius
+                );
 
                 // Draw multiple layers for depth effect
                 DrawBarWithLayers(g, barGeometry, barColor, parameters, magnitude);
@@ -1252,18 +1697,45 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                 // Draw mirrored bars with enhanced effects
                 if (parameters.MirrorBars && baseRadius > barHeight * 1.5f)
                 {
-                    DrawMirroredBar(g, centerX, centerY, baseRadius, imageRadius, barHeight, barStartAngle, barEndAngle, barColor, parameters, magnitude);
+                    DrawMirroredBar(
+                        g,
+                        centerX,
+                        centerY,
+                        baseRadius,
+                        imageRadius,
+                        barHeight,
+                        barStartAngle,
+                        barEndAngle,
+                        barColor,
+                        parameters,
+                        magnitude
+                    );
                 }
 
                 // Add reactive pulse effects for high-energy bars
                 if (magnitude > 0.7f && parameters.EnableGlow)
                 {
-                    DrawPulseEffect(g, centerX, centerY, barCenterAngle, baseRadius + barHeight, barColor, magnitude);
+                    DrawPulseEffect(
+                        g,
+                        centerX,
+                        centerY,
+                        barCenterAngle,
+                        baseRadius + barHeight,
+                        barColor,
+                        magnitude
+                    );
                 }
             }
         }
 
-        private BarGeometry CalculateBarGeometry(float centerX, float centerY, float baseRadius, float barHeight, double startAngle, double endAngle)
+        private BarGeometry CalculateBarGeometry(
+            float centerX,
+            float centerY,
+            float baseRadius,
+            float barHeight,
+            double startAngle,
+            double endAngle
+        )
         {
             // Calculate points with sub-pixel precision for smoother rendering
             var geometry = new BarGeometry();
@@ -1294,7 +1766,13 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             return geometry;
         }
 
-        private Color GetEnhancedColor(ColorMode colorMode, float magnitude, float position, float barHeight, float baseRadius)
+        private Color GetEnhancedColor(
+            ColorMode colorMode,
+            float magnitude,
+            float position,
+            float barHeight,
+            float baseRadius
+        )
         {
             // Enhanced color calculation with more vibrant and dynamic colors
             float intensity = Math.Min(1.0f, magnitude * 2.0f);
@@ -1316,7 +1794,13 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             return baseColor;
         }
 
-        private void DrawBarWithLayers(Graphics g, BarGeometry geometry, Color baseColor, CircularSpectrumBarsParameters parameters, float magnitude)
+        private void DrawBarWithLayers(
+            Graphics g,
+            BarGeometry geometry,
+            Color baseColor,
+            CircularSpectrumBarsParameters parameters,
+            float magnitude
+        )
         {
             // Create polygon from geometry points
             var allPoints = new List<PointF>();
@@ -1331,9 +1815,16 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             // Layer 1: Glow effect (if enabled)
             if (parameters.EnableGlow && magnitude > 0.3f)
             {
-                using (var glowBrush = new SolidBrush(Color.FromArgb(
-                    Math.Min(255, parameters.GlowIntensity * 2),
-                    baseColor.R, baseColor.G, baseColor.B)))
+                using (
+                    var glowBrush = new SolidBrush(
+                        Color.FromArgb(
+                            Math.Min(255, parameters.GlowIntensity * 2),
+                            baseColor.R,
+                            baseColor.G,
+                            baseColor.B
+                        )
+                    )
+                )
                 {
                     // Expand polygon slightly for glow
                     var glowPolygon = ExpandPolygon(polygon, parameters.GlowOffset);
@@ -1378,7 +1869,11 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             try
             {
                 return new System.Drawing.Drawing2D.LinearGradientBrush(
-                    innerCenter, outerCenter, darkerColor, baseColor);
+                    innerCenter,
+                    outerCenter,
+                    darkerColor,
+                    baseColor
+                );
             }
             catch
             {
@@ -1386,20 +1881,51 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             }
         }
 
-        private void DrawMirroredBar(Graphics g, float centerX, float centerY, float baseRadius, float imageRadius,
-            float barHeight, double startAngle, double endAngle, Color barColor, CircularSpectrumBarsParameters parameters, float magnitude)
+        private void DrawMirroredBar(
+            Graphics g,
+            float centerX,
+            float centerY,
+            float baseRadius,
+            float imageRadius,
+            float barHeight,
+            double startAngle,
+            double endAngle,
+            Color barColor,
+            CircularSpectrumBarsParameters parameters,
+            float magnitude
+        )
         {
             float mirrorInnerRadius = Math.Max(imageRadius * 1.05f, baseRadius - barHeight);
 
-            var mirrorGeometry = CalculateBarGeometry(centerX, centerY, mirrorInnerRadius, baseRadius - mirrorInnerRadius, startAngle, endAngle);
+            var mirrorGeometry = CalculateBarGeometry(
+                centerX,
+                centerY,
+                mirrorInnerRadius,
+                baseRadius - mirrorInnerRadius,
+                startAngle,
+                endAngle
+            );
 
             // Slightly transparent for layered effect
-            var mirrorColor = Color.FromArgb(Math.Max(50, barColor.A - 100), barColor.R, barColor.G, barColor.B);
+            var mirrorColor = Color.FromArgb(
+                Math.Max(50, barColor.A - 100),
+                barColor.R,
+                barColor.G,
+                barColor.B
+            );
 
             DrawBarWithLayers(g, mirrorGeometry, mirrorColor, parameters, magnitude * 0.7f);
         }
 
-        private void DrawCenterImageWithEffects(Graphics g, Image centerImage, float imageX, float imageY, float imageWidth, float imageHeight, CircularSpectrumBarsParameters parameters)
+        private void DrawCenterImageWithEffects(
+            Graphics g,
+            Image centerImage,
+            float imageX,
+            float imageY,
+            float imageWidth,
+            float imageHeight,
+            CircularSpectrumBarsParameters parameters
+        )
         {
             // Add subtle drop shadow
             using (var shadowBrush = new SolidBrush(Color.FromArgb(50, 0, 0, 0)))
@@ -1427,14 +1953,22 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             }
         }
 
-        private void DrawParticleEffects(Graphics g, ColorMode colorMode, float centerX, float centerY, float baseRadius, float[] magnitudes)
+        private void DrawParticleEffects(
+            Graphics g,
+            ColorMode colorMode,
+            float centerX,
+            float centerY,
+            float baseRadius,
+            float[] magnitudes
+        )
         {
             // Add floating particles that react to the music
             var random = new Random(_frameCount); // Deterministic but animated
 
             for (int i = 0; i < Math.Min(20, magnitudes.Length / 3); i++)
             {
-                if (magnitudes[i * 3] < 0.4f) continue; // Only show particles for active frequencies
+                if (magnitudes[i * 3] < 0.4f)
+                    continue; // Only show particles for active frequencies
 
                 float angle = (float)(random.NextDouble() * Math.PI * 2);
                 float distance = baseRadius + magnitudes[i * 3] * baseRadius * 0.5f + 20;
@@ -1442,18 +1976,36 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                 float particleX = centerX + (float)Math.Cos(angle) * distance;
                 float particleY = centerY + (float)Math.Sin(angle) * distance;
 
-                var particleColor = GetColor(colorMode, magnitudes[i * 3], (float)i / magnitudes.Length);
+                var particleColor = GetColor(
+                    colorMode,
+                    magnitudes[i * 3],
+                    (float)i / magnitudes.Length
+                );
                 var alpha = Math.Max(50, Math.Min(200, (int)(magnitudes[i * 3] * 255)));
 
                 using (var particleBrush = new SolidBrush(Color.FromArgb(alpha, particleColor)))
                 {
                     float size = 2f + magnitudes[i * 3] * 4f;
-                    g.FillEllipse(particleBrush, particleX - size / 2, particleY - size / 2, size, size);
+                    g.FillEllipse(
+                        particleBrush,
+                        particleX - size / 2,
+                        particleY - size / 2,
+                        size,
+                        size
+                    );
                 }
             }
         }
 
-        private void DrawPulseEffect(Graphics g, float centerX, float centerY, double angle, float radius, Color color, float magnitude)
+        private void DrawPulseEffect(
+            Graphics g,
+            float centerX,
+            float centerY,
+            double angle,
+            float radius,
+            Color color,
+            float magnitude
+        )
         {
             // Draw expanding pulse rings for high-energy bars
             float pulseX = centerX + (float)Math.Cos(angle) * radius;
@@ -1466,7 +2018,13 @@ namespace YoutubeDownloader.Core.AudioVisualisation
 
                 using (var pulsePen = new Pen(Color.FromArgb(alpha, color), 2f - ring * 0.5f))
                 {
-                    g.DrawEllipse(pulsePen, pulseX - ringRadius, pulseY - ringRadius, ringRadius * 2, ringRadius * 2);
+                    g.DrawEllipse(
+                        pulsePen,
+                        pulseX - ringRadius,
+                        pulseY - ringRadius,
+                        ringRadius * 2,
+                        ringRadius * 2
+                    );
                 }
             }
         }
@@ -1475,10 +2033,12 @@ namespace YoutubeDownloader.Core.AudioVisualisation
         private PointF[] ExpandPolygon(PointF[] polygon, float expansion)
         {
             var center = GetCenterPoint(polygon);
-            return polygon.Select(p => new PointF(
-                center.X + (p.X - center.X) * (1 + expansion / 100f),
-                center.Y + (p.Y - center.Y) * (1 + expansion / 100f)
-            )).ToArray();
+            return polygon
+                .Select(p => new PointF(
+                    center.X + (p.X - center.X) * (1 + expansion / 100f),
+                    center.Y + (p.Y - center.Y) * (1 + expansion / 100f)
+                ))
+                .ToArray();
         }
 
         private PointF GetCenterPoint(PointF[] points)

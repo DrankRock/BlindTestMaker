@@ -198,6 +198,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
         /// Additional angular spread (in radians) for the glow polygon on each side of the bar.
         /// </summary>
         public float GlowAngularSpread { get; set; }
+        public bool UseContinuousWaves { get; set; } = true;
 
         public override void SetDefaults()
         {
@@ -223,6 +224,8 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             GlowIntensity = 70; // Alpha for glow (0-255)
             GlowOffset = 2.5f; // Radial expansion for glow
             GlowAngularSpread = 0.015f; // Radians for angular glow expansion (per side)
+
+            UseContinuousWaves = true;
         }
     }
 
@@ -357,6 +360,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                 VisualizationMode.CircularWave => new CircularWaveParameters(),
                 VisualizationMode.SphericalPulse => new SphericalPulseParameters(),
                 VisualizationMode.SpectrumBars => new SpectrumBarsParameters(),
+                VisualizationMode.CircularSpectrumBars => new CircularSpectrumBarsParameters(),
                 VisualizationMode.ParticleFlow => new ParticleFlowParameters(),
                 VisualizationMode.KaleidoscopeWave => new KaleidoscopeWaveParameters(),
                 VisualizationMode.DNA_Helix => new DNAHelixParameters(),

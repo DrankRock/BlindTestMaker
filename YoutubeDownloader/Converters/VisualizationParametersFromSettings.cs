@@ -128,6 +128,8 @@ namespace YoutubeDownloader.Converters
                 GlowIntensity = (int)settings.CircularSpectrumGlowIntensity,
                 GlowOffset = settings.CircularSpectrumGlowOffset,
                 GlowAngularSpread = settings.CircularSpectrumGlowAngularSpread, // Radians
+
+                UseContinuousWaves = true,
             };
         }
 

@@ -336,7 +336,7 @@
                                 <Slider
                                     Width="120"
                                     IsSnapToTickEnabled="True"
-                                    Maximum="200"
+                                    Maximum="2000"
                                     Minimum="10"
                                     TickFrequency="10"
                                     Value="{Binding BarCount}" />
@@ -378,7 +378,7 @@
                                 <Slider
                                     Width="120"
                                     IsSnapToTickEnabled="True"
-                                    Maximum="200"
+                                    Maximum="2000"
                                     Minimum="10"
                                     TickFrequency="10"
                                     Value="{Binding CircularBarCount}" />

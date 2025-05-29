@@ -155,7 +155,7 @@ public partial class AudioVisualizationSettingsViewModel : DialogViewModelBase
     public int BarCount
     {
         get => _settingsService.BarCount;
-        set => _settingsService.BarCount = Math.Clamp(value, 10, 200);
+        set => _settingsService.BarCount = Math.Clamp(value, 10, 2000);
     }
 
     public double BarSpacing
@@ -222,7 +222,7 @@ public partial class AudioVisualizationSettingsViewModel : DialogViewModelBase
     public int CircularBarCount
     {
         get => _settingsService.BarCount;
-        set => _settingsService.BarCount = Math.Clamp(value, 10, 200);
+        set => _settingsService.BarCount = Math.Clamp(value, 10, 2000);
     }
 
     public double CircularAmplitudeMultiplier
