@@ -43,6 +43,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
         public float LineThickness { get; set; } = 3f;
         public bool DrawMultipleRings { get; set; } = false;
         public int RingCount { get; set; } = 3;
+        public string CircleCenterFilePath { get; set; } = "";
 
         public override void SetDefaults()
         {
@@ -54,6 +55,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             LineThickness = 3f;
             DrawMultipleRings = false;
             RingCount = 3;
+            CircleCenterFilePath = "";
         }
     }
 
@@ -106,6 +108,121 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             GlowIntensity = 50f;
             MirrorBars = false;
             LogarithmicScale = true;
+        }
+    }
+
+    public class CircularSpectrumBarsParameters : VisualizationParameters
+    {
+        // --- Core Spectrum Data Processing ---
+        /// <summary>
+        /// Number of bars to display in the circle.
+        /// </summary>
+        public int BarCount { get; set; }
+
+        /// <summary>
+        /// Multiplier for the FFT magnitude to determine bar height.
+        /// </summary>
+        public float AmplitudeMultiplier { get; set; }
+
+        /// <summary>
+        /// Use a logarithmic scale for frequency distribution across bars,
+        /// providing better representation of lower frequencies.
+        /// </summary>
+        public bool LogarithmicScale { get; set; }
+
+        // --- Circular Arrangement & Base ---
+        /// <summary>
+        /// Horizontal center of the circular spectrum (percentage of screen width, 0.0 to 1.0).
+        /// </summary>
+        public float CenterX { get; set; }
+
+        /// <summary>
+        /// Vertical center of the circular spectrum (percentage of screen height, 0.0 to 1.0).
+        /// </summary>
+        public float CenterY { get; set; }
+
+        /// <summary>
+        /// Optional file path to a PNG image to be displayed at the center.
+        /// If provided, its dimensions can influence the baseRadius.
+        /// </summary>
+        public string CircleCenterFilePath { get; set; }
+
+        /// <summary>
+        /// Fallback base radius if no CircleCenterFilePath is provided or image fails to load.
+        /// Defined as a percentage of the smaller screen dimension (width or height).
+        /// This is the radius of the inner circle from which bars emanate.
+        /// </summary>
+        public float BaseRadiusPercentage { get; set; }
+
+        // --- Bar Appearance in Circular Layout ---
+        /// <summary>
+        /// Ratio of the angular space each bar occupies within its allocated slot (0.0 to 1.0).
+        /// E.g., 0.8 means 80% bar, 20% combined spacing around it.
+        /// </summary>
+        public float BarFillRatio { get; set; }
+
+        /// <summary>
+        /// Factor to scale the bar's height based on FFT magnitude, relative to the baseRadius.
+        /// E.g., if baseRadius is 100, magnitude is 0.5, factor is 1.0, then height contribution is 50.
+        /// </summary>
+        public float BarHeightScaleFactor { get; set; }
+
+        /// <summary>
+        /// Maximum height of a bar as a ratio of the baseRadius.
+        /// E.g., 0.75 means a bar can be at most 75% of the baseRadius in length.
+        /// </summary>
+        public float MaxBarHeightRatio { get; set; }
+
+        // --- Visual Effects ---
+        /// <summary>
+        /// If true, draws bars extending both outwards and inwards from the baseRadius.
+        /// </summary>
+        public bool MirrorBars { get; set; }
+
+        /// <summary>
+        /// Enables a glow effect around the bars.
+        /// </summary>
+        public bool EnableGlow { get; set; }
+
+        /// <summary>
+        /// Alpha intensity of the glow effect (0 to 255).
+        /// </summary>
+        public int GlowIntensity { get; set; } // Will be cast to int for Color.FromArgb
+
+        /// <summary>
+        /// Radial offset for the glow polygon from the actual bar edges (in units consistent with radius).
+        /// </summary>
+        public float GlowOffset { get; set; }
+
+        /// <summary>
+        /// Additional angular spread (in radians) for the glow polygon on each side of the bar.
+        /// </summary>
+        public float GlowAngularSpread { get; set; }
+
+        public override void SetDefaults()
+        {
+            // Core Spectrum
+            BarCount = 64;
+            AmplitudeMultiplier = 15f; // Adjusted as bar heights are now relative to baseRadius
+            LogarithmicScale = true;
+
+            // Circular Arrangement
+            CenterX = 0.5f;
+            CenterY = 0.5f;
+            CircleCenterFilePath = "";
+            BaseRadiusPercentage = 0.20f; // Inner radius for bars to start from (20% of min screen dimension)
+
+            // Bar Appearance
+            BarFillRatio = 0.85f; // 85% bar, 15% total spacing
+            BarHeightScaleFactor = 1.2f; // How much FFT magnitude contributes to bar length relative to baseRadius
+            MaxBarHeightRatio = 0.80f; // Max bar length is 80% of baseRadius
+
+            // Effects
+            MirrorBars = false;
+            EnableGlow = true;
+            GlowIntensity = 70; // Alpha for glow (0-255)
+            GlowOffset = 2.5f; // Radial expansion for glow
+            GlowAngularSpread = 0.015f; // Radians for angular glow expansion (per side)
         }
     }
 

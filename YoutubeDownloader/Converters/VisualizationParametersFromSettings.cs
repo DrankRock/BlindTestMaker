@@ -19,6 +19,9 @@ namespace YoutubeDownloader.Converters
                 VisualizationMode.CircularWave => CreateCircularWaveParameters(settings),
                 VisualizationMode.SphericalPulse => CreateSphericalPulseParameters(settings),
                 VisualizationMode.SpectrumBars => CreateSpectrumBarsParameters(settings),
+                VisualizationMode.CircularSpectrumBars => CreateCircularSpectrumBarsParameters(
+                    settings
+                ),
                 VisualizationMode.ParticleFlow => CreateParticleFlowParameters(settings),
                 VisualizationMode.KaleidoscopeWave => CreateKaleidoscopeWaveParameters(settings),
                 VisualizationMode.DNA_Helix => CreateDNAHelixParameters(settings),
@@ -51,9 +54,10 @@ namespace YoutubeDownloader.Converters
                 BaseRadius = (float)(0.25f * settings.ZoomLevel),
                 MaxRadiusMultiplier = (float)settings.WaveAmplitude,
                 SamplePoints = 360, // Could be made configurable
-                LineThickness = 3f,
+                LineThickness = settings.LineThickness,
                 DrawMultipleRings = false, // Could be made configurable
                 RingCount = 3,
+                CircleCenterFilePath = settings.CircleCenterFilePath ?? "",
             };
         }
 
@@ -85,6 +89,45 @@ namespace YoutubeDownloader.Converters
                 GlowIntensity = 50f,
                 MirrorBars = false, // Could be made configurable
                 LogarithmicScale = true,
+            };
+        }
+
+        public static CircularSpectrumBarsParameters CreateCircularSpectrumBarsParameters(
+            SettingsService settings
+        )
+        {
+            return new CircularSpectrumBarsParameters
+            {
+                // --- Core Spectrum Data Processing ---
+                BarCount = settings.BarCount,
+                // Derived from a general setting, similar to other examples.
+                // Ensure settings.WaveAmplitude is a sensible general intensity/amplitude factor.
+                AmplitudeMultiplier = (float)(12.0f * settings.WaveAmplitude),
+                LogarithmicScale = settings.SpectrumLogarithmicScale, // From SettingsService
+
+                // --- Circular Arrangement & Base ---
+                // Following the pattern from your CreateCircularWaveParameters example for CenterX/Y.
+                // Note: If settings.XPosition/YPosition are typically in [-1, 1] (global screen offsets)
+                // and parameters.CenterX/Y expect [0, 1] (normalized screen coordinates),
+                // you might eventually want: 0.5f + ((float)settings.XPosition * 0.5f).
+                // For now, matching your provided style:
+                CenterX = 0.5f + (float)settings.XPosition,
+                CenterY = 0.5f + (float)settings.YPosition,
+
+                CircleCenterFilePath = settings.CircleCenterFilePath ?? "", // Ensure non-null
+                BaseRadiusPercentage = settings.BaseRadius, // Directly from SettingsService (which is now float)
+
+                // --- Bar Appearance in Circular Layout (from SettingsService) ---
+                BarFillRatio = settings.CircularSpectrumBarFillRatio,
+                BarHeightScaleFactor = settings.CircularSpectrumBarHeightScaleFactor,
+                MaxBarHeightRatio = settings.CircularSpectrumMaxBarHeightRatio,
+
+                // --- Visual Effects (from SettingsService) ---
+                MirrorBars = settings.CircularSpectrumMirrorBars,
+                EnableGlow = settings.CircularSpectrumEnableGlow,
+                GlowIntensity = (int)settings.CircularSpectrumGlowIntensity,
+                GlowOffset = settings.CircularSpectrumGlowOffset,
+                GlowAngularSpread = settings.CircularSpectrumGlowAngularSpread, // Radians
             };
         }
 

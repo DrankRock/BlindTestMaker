@@ -21,8 +21,7 @@
             BorderThickness="0,1">
             <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
                 <StackPanel Orientation="Vertical">
-                    
-                    <!-- Visualization Mode -->
+                   
                     <DockPanel
                         Margin="16,8"
                         LastChildFill="False"
@@ -35,7 +34,6 @@
                             SelectedItem="{Binding VisualizationMode}" />
                     </DockPanel>
 
-                    <!-- Color Mode -->
                     <DockPanel
                         Margin="16,8"
                         LastChildFill="False"
@@ -48,7 +46,6 @@
                             SelectedItem="{Binding ColorMode}" />
                     </DockPanel>
 
-                    <!-- Interval Between Videos -->
                     <DockPanel
                         Margin="16,8"
                         LastChildFill="False"
@@ -62,7 +59,6 @@
                             Value="{Binding IntervalBetweenVideos}" />
                     </DockPanel>
 
-                    <!-- Background Video -->
                     <StackPanel Margin="16,8" Orientation="Vertical">
                         <DockPanel LastChildFill="False" ToolTip.Tip="Optional background video to overlay visualization on">
                             <TextBlock DockPanel.Dock="Left" Text="Background Video" />
@@ -97,7 +93,6 @@
                             BorderThickness="0" />
                     </StackPanel>
 
-                    <!-- Background Image -->
                     <StackPanel Margin="16,8" Orientation="Vertical">
                         <DockPanel LastChildFill="False" ToolTip.Tip="Optional background image to overlay visualization on">
                             <TextBlock DockPanel.Dock="Left" Text="Background Image" />
@@ -132,7 +127,6 @@
                             BorderThickness="0" />
                     </StackPanel>
 
-                    <!-- Separator -->
                     <Separator Margin="16,16,16,8" />
                     <TextBlock 
                         Margin="16,0,16,8" 
@@ -140,8 +134,6 @@
                         Text="Visualization Settings" 
                         FontSize="14" />
 
-                    <!-- Common Settings -->
-                    <!-- Zoom Level -->
                     <DockPanel
                         Margin="16,8"
                         LastChildFill="False"
@@ -158,7 +150,6 @@
                         </StackPanel>
                     </DockPanel>
 
-                    <!-- X Position -->
                     <DockPanel
                         Margin="16,8"
                         LastChildFill="False"
@@ -175,7 +166,6 @@
                         </StackPanel>
                     </DockPanel>
 
-                    <!-- Y Position -->
                     <DockPanel
                         Margin="16,8"
                         LastChildFill="False"
@@ -192,16 +182,13 @@
                         </StackPanel>
                     </DockPanel>
 
-                    <!-- Mode-Specific Settings -->
-
-                    <!-- Basic Waveform Settings -->
                     <StackPanel IsVisible="{Binding IsBasicWaveformMode}" Orientation="Vertical">
                         <TextBlock 
                             Margin="16,16,16,8" 
                             FontWeight="SemiBold" 
                             Text="Waveform Settings" 
                             FontSize="13" />
-                        
+                       
                         <DockPanel
                             Margin="16,8"
                             LastChildFill="False"
@@ -235,14 +222,13 @@
                         </DockPanel>
                     </StackPanel>
 
-                    <!-- Circular Wave Settings -->
                     <StackPanel IsVisible="{Binding IsCircularWaveMode}" Orientation="Vertical">
                         <TextBlock 
                             Margin="16,16,16,8" 
                             FontWeight="SemiBold" 
                             Text="Circular Wave Settings" 
                             FontSize="13" />
-                        
+                       
                         <DockPanel
                             Margin="16,8"
                             LastChildFill="False"
@@ -258,16 +244,64 @@
                                     Value="{Binding WaveAmplitude}" />
                             </StackPanel>
                         </DockPanel>
+                        <DockPanel
+                            Margin="16,8"
+                            LastChildFill="False"
+                            ToolTip.Tip="Line thickness for circular waves">
+                            <TextBlock DockPanel.Dock="Left" Text="Line Thickness" />
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <TextBlock Margin="10,0" Text="{Binding LineThickness}" />
+                                <Slider
+                                    Width="120"
+                                    IsSnapToTickEnabled="True"
+                                    Maximum="50"
+                                    Minimum="1"
+                                    TickFrequency="0.5"
+                                    Value="{Binding LineThickness}" />
+                            </StackPanel>
+                        </DockPanel>
+                        <StackPanel Margin="16,8" Orientation="Vertical">
+                            <DockPanel LastChildFill="False" ToolTip.Tip="Optional PNG image for the center of the circular wave">
+                                <TextBlock DockPanel.Dock="Left" Text="Circle Background Picture" />
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="4">
+                                    <Button
+                                        Padding="4"
+                                        Command="{Binding ClearCircleCenterImageCommand}"
+                                        IsEnabled="{Binding CircleCenterImageFilePath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                        Theme="{DynamicResource MaterialFlatButton}"
+                                        ToolTip.Tip="Clear circle background picture">
+                                        <materialIcons:MaterialIcon Kind="Close" Width="16" Height="16" />
+                                    </Button>
+                                    <Button
+                                        Padding="4"
+                                        Command="{Binding BrowseCircleCenterImageCommand}"
+                                        Theme="{DynamicResource MaterialFlatButton}"
+                                        ToolTip.Tip="Browse for circle background picture (PNG)">
+                                        <materialIcons:MaterialIcon Kind="Image" Width="16" Height="16" />
+                                    </Button>
+                                </StackPanel>
+                            </DockPanel>
+                            <TextBox
+                                Margin="0,4,0,0"
+                                Text="{Binding CircleCenterImageFilePath}"
+                                Watermark="No circle background picture selected"
+                                IsReadOnly="True"
+                                TextWrapping="Wrap"
+                                MaxLines="2"
+                                FontSize="12"
+                                Foreground="{DynamicResource MaterialBodyBrush}"
+                                Background="Transparent"
+                                BorderThickness="0" />
+                        </StackPanel>
                     </StackPanel>
 
-                    <!-- Spherical Pulse Settings -->
                     <StackPanel IsVisible="{Binding IsSphericalPulseMode}" Orientation="Vertical">
                         <TextBlock 
                             Margin="16,16,16,8" 
                             FontWeight="SemiBold" 
                             Text="Spherical Pulse Settings" 
                             FontSize="13" />
-                        
+                       
                         <DockPanel
                             Margin="16,8"
                             LastChildFill="False"
@@ -285,14 +319,13 @@
                         </DockPanel>
                     </StackPanel>
 
-                    <!-- Spectrum Bars Settings -->
                     <StackPanel IsVisible="{Binding IsSpectrumBarsMode}" Orientation="Vertical">
                         <TextBlock 
                             Margin="16,16,16,8" 
                             FontWeight="SemiBold" 
                             Text="Spectrum Bars Settings" 
                             FontSize="13" />
-                        
+                       
                         <DockPanel
                             Margin="16,8"
                             LastChildFill="False"
@@ -327,14 +360,277 @@
                         </DockPanel>
                     </StackPanel>
 
-                    <!-- Particle Flow Settings -->
+                    <StackPanel IsVisible="{Binding IsCircularSpectrumBarsMode}" Orientation="Vertical">
+                        <TextBlock 
+                            Margin="16,16,16,8" 
+                            FontWeight="SemiBold" 
+                            Text="Circular Spectrum Bars Settings" 
+                            FontSize="13" />
+
+                        <!-- Bar Count -->
+                        <DockPanel
+                            Margin="16,8"
+                            LastChildFill="False"
+                            ToolTip.Tip="Number of frequency bars to display in the circle">
+                            <TextBlock DockPanel.Dock="Left" Text="Bar Count" />
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <TextBlock Margin="10,0" Text="{Binding CircularBarCount}" />
+                                <Slider
+                                    Width="120"
+                                    IsSnapToTickEnabled="True"
+                                    Maximum="200"
+                                    Minimum="10"
+                                    TickFrequency="10"
+                                    Value="{Binding CircularBarCount}" />
+                            </StackPanel>
+                        </DockPanel>
+
+                        <!-- Amplitude Multiplier -->
+                        <DockPanel
+                            Margin="16,8"
+                            LastChildFill="False"
+                            ToolTip.Tip="Multiplier for FFT magnitude to determine bar height">
+                            <TextBlock DockPanel.Dock="Left" Text="Amplitude Multiplier" />
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <TextBlock Margin="10,0" Text="{Binding CircularAmplitudeMultiplier, StringFormat='{}{0:F1}x'}" />
+                                <Slider
+                                    Width="120"
+                                    Maximum="50.0"
+                                    Minimum="1.0"
+                                    TickFrequency="1.0"
+                                    Value="{Binding CircularAmplitudeMultiplier}" />
+                            </StackPanel>
+                        </DockPanel>
+
+                        <!-- Logarithmic Scale -->
+                        <DockPanel
+                            Margin="16,8"
+                            LastChildFill="False"
+                            ToolTip.Tip="Use logarithmic scale for better representation of lower frequencies">
+                            <TextBlock DockPanel.Dock="Left" Text="Logarithmic Scale" />
+                            <CheckBox
+                                DockPanel.Dock="Right"
+                                IsChecked="{Binding CircularLogarithmicScale}" />
+                        </DockPanel>
+
+                        <!-- Center Position -->
+                        <DockPanel
+                            Margin="16,8"
+                            LastChildFill="False"
+                            ToolTip.Tip="Horizontal center position (0.0 to 1.0)">
+                            <TextBlock DockPanel.Dock="Left" Text="Center X" />
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <TextBlock Margin="10,0" Text="{Binding CircularCenterX, StringFormat='{}{0:F2}'}" />
+                                <Slider
+                                    Width="120"
+                                    Maximum="1.0"
+                                    Minimum="0.0"
+                                    TickFrequency="0.1"
+                                    Value="{Binding CircularCenterX}" />
+                            </StackPanel>
+                        </DockPanel>
+
+                        <DockPanel
+                            Margin="16,8"
+                            LastChildFill="False"
+                            ToolTip.Tip="Vertical center position (0.0 to 1.0)">
+                            <TextBlock DockPanel.Dock="Left" Text="Center Y" />
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <TextBlock Margin="10,0" Text="{Binding CircularCenterY, StringFormat='{}{0:F2}'}" />
+                                <Slider
+                                    Width="120"
+                                    Maximum="1.0"
+                                    Minimum="0.0"
+                                    TickFrequency="0.1"
+                                    Value="{Binding CircularCenterY}" />
+                            </StackPanel>
+                        </DockPanel>
+
+                        <!-- Circle Center Image -->
+                        <StackPanel Margin="16,8" Orientation="Vertical">
+                            <DockPanel LastChildFill="False" ToolTip.Tip="Optional PNG image for the center of the circular spectrum">
+                                <TextBlock DockPanel.Dock="Left" Text="Center Image" />
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="4">
+                                    <Button
+                                        Padding="4"
+                                        Command="{Binding ClearCircleCenterImageCommand}"
+                                        IsEnabled="{Binding CircularCircleCenterFilePath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                        Theme="{DynamicResource MaterialFlatButton}"
+                                        ToolTip.Tip="Clear center image">
+                                        <materialIcons:MaterialIcon Kind="Close" Width="16" Height="16" />
+                                    </Button>
+                                    <Button
+                                        Padding="4"
+                                        Command="{Binding BrowseCircleCenterImageCommand}"
+                                        Theme="{DynamicResource MaterialFlatButton}"
+                                        ToolTip.Tip="Browse for center image (PNG)">
+                                        <materialIcons:MaterialIcon Kind="Image" Width="16" Height="16" />
+                                    </Button>
+                                </StackPanel>
+                            </DockPanel>
+                            <TextBox
+                                Margin="0,4,0,0"
+                                Text="{Binding CircularCircleCenterFilePath}"
+                                Watermark="No center image selected"
+                                IsReadOnly="True"
+                                TextWrapping="Wrap"
+                                MaxLines="2"
+                                FontSize="12"
+                                Foreground="{DynamicResource MaterialBodyBrush}"
+                                Background="Transparent"
+                                BorderThickness="0" />
+                        </StackPanel>
+
+                        <!-- Base Radius -->
+                        <DockPanel
+                            Margin="16,8"
+                            LastChildFill="False"
+                            ToolTip.Tip="Base radius as percentage of screen (inner circle radius)">
+                            <TextBlock DockPanel.Dock="Left" Text="Base Radius" />
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <TextBlock Margin="10,0" Text="{Binding CircularBaseRadiusPercentage, StringFormat='{}{0:P0}'}" />
+                                <Slider
+                                    Width="120"
+                                    Maximum="0.5"
+                                    Minimum="0.05"
+                                    TickFrequency="0.05"
+                                    Value="{Binding CircularBaseRadiusPercentage}" />
+                            </StackPanel>
+                        </DockPanel>
+
+                        <!-- Bar Fill Ratio -->
+                        <DockPanel
+                            Margin="16,8"
+                            LastChildFill="False"
+                            ToolTip.Tip="Ratio of angular space each bar occupies (0.1 to 1.0)">
+                            <TextBlock DockPanel.Dock="Left" Text="Bar Fill Ratio" />
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <TextBlock Margin="10,0" Text="{Binding CircularBarFillRatio, StringFormat='{}{0:P0}'}" />
+                                <Slider
+                                    Width="120"
+                                    Maximum="1.0"
+                                    Minimum="0.1"
+                                    TickFrequency="0.1"
+                                    Value="{Binding CircularBarFillRatio}" />
+                            </StackPanel>
+                        </DockPanel>
+
+                        <!-- Bar Height Scale Factor -->
+                        <DockPanel
+                            Margin="16,8"
+                            LastChildFill="False"
+                            ToolTip.Tip="Scale factor for bar height relative to base radius">
+                            <TextBlock DockPanel.Dock="Left" Text="Height Scale Factor" />
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <TextBlock Margin="10,0" Text="{Binding CircularBarHeightScaleFactor, StringFormat='{}{0:F1}x'}" />
+                                <Slider
+                                    Width="120"
+                                    Maximum="5.0"
+                                    Minimum="0.1"
+                                    TickFrequency="0.1"
+                                    Value="{Binding CircularBarHeightScaleFactor}" />
+                            </StackPanel>
+                        </DockPanel>
+
+                        <!-- Max Bar Height Ratio -->
+                        <DockPanel
+                            Margin="16,8"
+                            LastChildFill="False"
+                            ToolTip.Tip="Maximum bar height as ratio of base radius">
+                            <TextBlock DockPanel.Dock="Left" Text="Max Height Ratio" />
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <TextBlock Margin="10,0" Text="{Binding CircularMaxBarHeightRatio, StringFormat='{}{0:F1}x'}" />
+                                <Slider
+                                    Width="120"
+                                    Maximum="2.0"
+                                    Minimum="0.1"
+                                    TickFrequency="0.1"
+                                    Value="{Binding CircularMaxBarHeightRatio}" />
+                            </StackPanel>
+                        </DockPanel>
+
+                        <!-- Mirror Bars -->
+                        <DockPanel
+                            Margin="16,8"
+                            LastChildFill="False"
+                            ToolTip.Tip="Draw bars extending both inwards and outwards">
+                            <TextBlock DockPanel.Dock="Left" Text="Mirror Bars" />
+                            <CheckBox
+                                DockPanel.Dock="Right"
+                                IsChecked="{Binding CircularMirrorBars}" />
+                        </DockPanel>
+
+                        <!-- Enable Glow -->
+                        <DockPanel
+                            Margin="16,8"
+                            LastChildFill="False"
+                            ToolTip.Tip="Enable glow effect around bars">
+                            <TextBlock DockPanel.Dock="Left" Text="Enable Glow" />
+                            <CheckBox
+                                DockPanel.Dock="Right"
+                                IsChecked="{Binding CircularEnableGlow}" />
+                        </DockPanel>
+
+                        <!-- Glow Settings (visible when glow is enabled) -->
+                        <StackPanel IsVisible="{Binding CircularEnableGlow}" Orientation="Vertical">
+                            <DockPanel
+                                Margin="16,8"
+                                LastChildFill="False"
+                                ToolTip.Tip="Alpha intensity of glow effect (0-255)">
+                                <TextBlock DockPanel.Dock="Left" Text="Glow Intensity" />
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                    <TextBlock Margin="10,0" Text="{Binding CircularGlowIntensity}" />
+                                    <Slider
+                                        Width="120"
+                                        IsSnapToTickEnabled="True"
+                                        Maximum="255"
+                                        Minimum="0"
+                                        TickFrequency="5"
+                                        Value="{Binding CircularGlowIntensity}" />
+                                </StackPanel>
+                            </DockPanel>
+
+                            <DockPanel
+                                Margin="16,8"
+                                LastChildFill="False"
+                                ToolTip.Tip="Radial offset for glow effect">
+                                <TextBlock DockPanel.Dock="Left" Text="Glow Offset" />
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                    <TextBlock Margin="10,0" Text="{Binding CircularGlowOffset, StringFormat='{}{0:F1}'}" />
+                                    <Slider
+                                        Width="120"
+                                        Maximum="10.0"
+                                        Minimum="0.0"
+                                        TickFrequency="0.5"
+                                        Value="{Binding CircularGlowOffset}" />
+                                </StackPanel>
+                            </DockPanel>
+
+                            <DockPanel
+                                Margin="16,8"
+                                LastChildFill="False"
+                                ToolTip.Tip="Angular spread for glow effect (in radians)">
+                                <TextBlock DockPanel.Dock="Left" Text="Glow Angular Spread" />
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                    <TextBlock Margin="10,0" Text="{Binding CircularGlowAngularSpread, StringFormat='{}{0:F3}'}" />
+                                    <Slider
+                                        Width="120"
+                                        Maximum="0.1"
+                                        Minimum="0.0"
+                                        TickFrequency="0.005"
+                                        Value="{Binding CircularGlowAngularSpread}" />
+                                </StackPanel>
+                            </DockPanel>
+                        </StackPanel>
+                    </StackPanel>
+
                     <StackPanel IsVisible="{Binding IsParticleFlowMode}" Orientation="Vertical">
                         <TextBlock 
                             Margin="16,16,16,8" 
                             FontWeight="SemiBold" 
                             Text="Particle Flow Settings" 
                             FontSize="13" />
-                        
+                       
                         <DockPanel
                             Margin="16,8"
                             LastChildFill="False"
@@ -369,14 +665,13 @@
                         </DockPanel>
                     </StackPanel>
 
-                    <!-- Kaleidoscope Wave Settings -->
                     <StackPanel IsVisible="{Binding IsKaleidoscopeWaveMode}" Orientation="Vertical">
                         <TextBlock 
                             Margin="16,16,16,8" 
                             FontWeight="SemiBold" 
                             Text="Kaleidoscope Settings" 
                             FontSize="13" />
-                        
+                       
                         <DockPanel
                             Margin="16,8"
                             LastChildFill="False"
@@ -411,14 +706,13 @@
                         </DockPanel>
                     </StackPanel>
 
-                    <!-- DNA Helix Settings -->
                     <StackPanel IsVisible="{Binding IsDNAHelixMode}" Orientation="Vertical">
                         <TextBlock 
                             Margin="16,16,16,8" 
                             FontWeight="SemiBold" 
                             Text="DNA Helix Settings" 
                             FontSize="13" />
-                        
+                       
                         <DockPanel
                             Margin="16,8"
                             LastChildFill="False"
@@ -452,14 +746,13 @@
                         </DockPanel>
                     </StackPanel>
 
-                    <!-- Aurora Settings -->
                     <StackPanel IsVisible="{Binding IsAuroraMode}" Orientation="Vertical">
                         <TextBlock 
                             Margin="16,16,16,8" 
                             FontWeight="SemiBold" 
                             Text="Aurora Settings" 
                             FontSize="13" />
-                        
+                       
                         <DockPanel
                             Margin="16,8"
                             LastChildFill="False"
@@ -497,7 +790,6 @@
             </ScrollViewer>
         </Border>
 
-        <!-- Close button -->
         <Button
             Grid.Row="2"
             Margin="16"

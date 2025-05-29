@@ -48,6 +48,7 @@ public partial class DashboardViewModel : ViewModelBase
         _snackbarManager = snackbarManager;
         _dialogManager = dialogManager;
         _settingsService = settingsService;
+        _settingsService.Initialize();
 
         _progressMuxer = Progress.CreateMuxer().WithAutoReset();
 

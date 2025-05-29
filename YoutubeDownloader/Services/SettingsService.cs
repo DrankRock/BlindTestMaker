@@ -4,9 +4,10 @@ using System.IO;
 using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading.Tasks;
 using Cogwheel;
 using CommunityToolkit.Mvvm.ComponentModel;
-using YoutubeDownloader.Core.AudioVisualisation;
+using YoutubeDownloader.Core.AudioVisualisation; // Ensure this namespace includes VisualizationMode, ColorMode
 using YoutubeDownloader.Core.Downloading;
 using YoutubeDownloader.Framework;
 using Container = YoutubeExplode.Videos.Streams.Container;
@@ -20,6 +21,10 @@ public partial class SettingsService()
         SerializerContext.Default
     )
 {
+    // Add this flag to prevent recursive saves during loading
+    private bool _isLoading = false;
+    private bool _isInitialized = false;
+
     [ObservableProperty]
     public partial bool IsUkraineSupportMessageEnabled { get; set; } = true;
 
@@ -61,7 +66,6 @@ public partial class SettingsService()
     public partial VideoQualityPreference LastVideoQualityPreference { get; set; } =
         VideoQualityPreference.Highest;
 
-    // Add property for the working directory
     [ObservableProperty]
     public partial string? LastWorkingDirectory { get; set; }
 
@@ -87,28 +91,67 @@ public partial class SettingsService()
     public partial double ZoomLevel { get; set; } = 1.0;
 
     [ObservableProperty]
-    public partial double XPosition { get; set; } = 0.0;
+    public partial double XPosition { get; set; } = 0.0; // Global X offset (-1 to 1)
 
     [ObservableProperty]
-    public partial double YPosition { get; set; } = 0.0;
+    public partial double YPosition { get; set; } = 0.0; // Global Y offset (-1 to 1)
+
+    // Base settings for circular visualizations
+    [ObservableProperty]
+    public partial float BaseRadius { get; set; } = 0.25f; // General base radius for circular items (e.g., percentage of min screen dim)
 
     // Spherical-specific settings
     [ObservableProperty]
     public partial double SphereDiameter { get; set; } = 1.0;
 
-    // Waveform-specific settings
+    // Waveform-specific settings (used also for amplitude scaling in other visualizers)
     [ObservableProperty]
-    public partial double WaveAmplitude { get; set; } = 1.0;
+    public partial double WaveAmplitude { get; set; } = 1.0; // General amplitude/intensity factor
 
     [ObservableProperty]
-    public partial double WaveFrequency { get; set; } = 1.0;
-
-    // Spectrum bars settings
-    [ObservableProperty]
-    public partial int BarCount { get; set; } = 50;
+    public partial double WaveFrequency { get; set; } = 1.0; // Specific to waveform type visualizers
 
     [ObservableProperty]
-    public partial double BarSpacing { get; set; } = 1.0;
+    public partial float LineThickness { get; set; } = 3f; // For line-based visualizers like CircularWave
+
+    // Circular Waveform-specific
+    [ObservableProperty]
+    public partial string? CircleCenterFilePath { get; set; } // Also used by CircularSpectrumBars
+
+    // Spectrum bars settings (some are for linear, some can be adapted or new ones for circular)
+    [ObservableProperty]
+    public partial int BarCount { get; set; } = 64; // Used by both linear and circular spectrums
+
+    [ObservableProperty]
+    public partial double BarSpacing { get; set; } = 1.0; // Primarily for linear spectrum bars
+
+    [ObservableProperty]
+    public partial bool SpectrumLogarithmicScale { get; set; } = true; // For all spectrum types
+
+    // --- New Settings for CircularSpectrumBars ---
+    [ObservableProperty]
+    public partial float CircularSpectrumBarFillRatio { get; set; } = 0.85f;
+
+    [ObservableProperty]
+    public partial float CircularSpectrumBarHeightScaleFactor { get; set; } = 1.2f;
+
+    [ObservableProperty]
+    public partial float CircularSpectrumMaxBarHeightRatio { get; set; } = 0.80f;
+
+    [ObservableProperty]
+    public partial bool CircularSpectrumMirrorBars { get; set; } = false;
+
+    [ObservableProperty]
+    public partial bool CircularSpectrumEnableGlow { get; set; } = true;
+
+    [ObservableProperty]
+    public partial float CircularSpectrumGlowIntensity { get; set; } = 70f; // Alpha 0-255
+
+    [ObservableProperty]
+    public partial float CircularSpectrumGlowOffset { get; set; } = 2.5f;
+
+    [ObservableProperty]
+    public partial float CircularSpectrumGlowAngularSpread { get; set; } = 0.015f; // Radians
 
     // Particle settings
     [ObservableProperty]
@@ -140,6 +183,41 @@ public partial class SettingsService()
 
     #endregion
 
+    // Initialize the settings service
+    public void Initialize()
+    {
+        if (_isInitialized)
+            return;
+
+        // Load existing settings first
+        try
+        {
+            _isLoading = true;
+            Load();
+        }
+        catch
+        {
+            // If loading fails, we'll use defaults
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+
+        // Set up auto-save on property changes
+        PropertyChanged += (sender, args) =>
+        {
+            // Don't save during loading to avoid overwriting with defaults
+            if (!_isLoading && !string.IsNullOrEmpty(args.PropertyName))
+            {
+                // Delay the save slightly to batch multiple rapid changes
+                _ = Task.Delay(100).ContinueWith(_ => Save());
+            }
+        };
+
+        _isInitialized = true;
+    }
+
     public override void Save()
     {
         // Clear the cookies if they are not supposed to be persisted
@@ -151,8 +229,18 @@ public partial class SettingsService()
 
         LastAuthCookies = lastAuthCookies;
     }
+
+    // Add a method to manually trigger save (useful for immediate saves)
+    public void SaveNow()
+    {
+        if (!_isLoading)
+        {
+            Save();
+        }
+    }
 }
 
+// ContainerJsonConverter and SerializerContext remain unchanged
 public partial class SettingsService
 {
     private class ContainerJsonConverter : JsonConverter<Container>

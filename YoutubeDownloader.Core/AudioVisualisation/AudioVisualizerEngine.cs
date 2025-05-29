@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using LibVLCSharp.Shared;
 using NAudio.Dsp;
 using NAudio.Wave;
+using YoutubeDownloader.Core.Utils.Extensions;
 
 namespace YoutubeDownloader.Core.AudioVisualisation
 {
@@ -21,6 +22,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
         CircularWave,
         SphericalPulse,
         SpectrumBars,
+        CircularSpectrumBars,
         ParticleFlow,
         KaleidoscopeWave,
         DNA_Helix,
@@ -306,6 +308,13 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                                 g,
                                 colorMode,
                                 _visualizationParameters as SpectrumBarsParameters
+                            );
+                            break;
+                        case VisualizationMode.CircularSpectrumBars:
+                            DrawCircularSpectrumBars(
+                                g,
+                                colorMode,
+                                _visualizationParameters as CircularSpectrumBarsParameters
                             );
                             break;
                         case VisualizationMode.ParticleFlow:
@@ -623,122 +632,248 @@ namespace YoutubeDownloader.Core.AudioVisualisation
 
             float centerX = _width * parameters.CenterX;
             float centerY = _height * parameters.CenterY;
-            float baseRadius = Math.Min(_width, _height) * parameters.BaseRadius;
-            Debug.WriteLine(
-                $"AudioVisualizerEngine.DrawCircularWave - Center: ({centerX},{centerY}), BaseRadius: {baseRadius}"
-            );
+            float baseRadius; // Will be determined based on image or parameters
 
-            var points = new List<PointF>();
-            int sampleCount = Math.Min(samples.Length, parameters.SamplePoints);
-            Debug.WriteLine(
-                $"AudioVisualizerEngine.DrawCircularWave - Will use {sampleCount} samples for the circle."
-            );
+            Image? centerImage = null; // Use nullable Image for proper disposal
 
-            // Draw main circle
-            for (int i = 0; i < sampleCount; i++)
+            try
             {
-                float angle = (float)(i * 2 * Math.PI / sampleCount);
-                int currentSampleIndex =
-                    (samples.Length == sampleCount) ? i : (i * samples.Length / sampleCount);
-
-                float radius =
-                    baseRadius
-                    + samples[currentSampleIndex] * baseRadius * parameters.MaxRadiusMultiplier;
-                float x = centerX + (float)Math.Cos(angle) * radius;
-                float y = centerY + (float)Math.Sin(angle) * radius;
-                points.Add(new PointF(x, y));
-                if (i < 5)
-                    Debug.WriteLine(
-                        $"AudioVisualizerEngine.DrawCircularWave - Point {i}: Angle={angle}, SampleVal={samples[currentSampleIndex]}, Radius={radius}, Pos=({x},{y})"
-                    );
-            }
-            Debug.WriteLine(
-                $"AudioVisualizerEngine.DrawCircularWave - Generated {points.Count} points for circular wave."
-            );
-
-            if (points.Count > 1)
-            {
-                // Draw main circle
-                for (int i = 0; i < points.Count; i++)
+                if (
+                    !string.IsNullOrEmpty(parameters.CircleCenterFilePath)
+                    && File.Exists(parameters.CircleCenterFilePath)
+                )
                 {
-                    int next = (i + 1) % points.Count;
-                    int currentSampleIndex =
-                        (samples.Length == sampleCount) ? i : (i * samples.Length / sampleCount);
-                    float intensity = Math.Abs(samples[currentSampleIndex]) * 2f;
-                    var color = GetColor(colorMode, intensity, (float)i / points.Count);
-                    using (var pen = new Pen(color, parameters.LineThickness))
+                    try
                     {
-                        g.DrawLine(pen, points[i], points[next]);
+                        centerImage = Image.FromFile(parameters.CircleCenterFilePath);
+                        Debug.WriteLine(
+                            $"AudioVisualizerEngine.DrawCircularWave - Loaded center image: {parameters.CircleCenterFilePath}"
+                        );
+
+                        // Calculate position to draw the image centered
+                        float imageX = centerX - centerImage.Width / 2.0f;
+                        float imageY = centerY - centerImage.Height / 2.0f;
+
+                        // Draw the image
+                        g.DrawImage(
+                            centerImage,
+                            imageX,
+                            imageY,
+                            centerImage.Width,
+                            centerImage.Height
+                        );
+                        Debug.WriteLine(
+                            $"AudioVisualizerEngine.DrawCircularWave - Drew center image at ({imageX},{imageY}) with size ({centerImage.Width},{centerImage.Height})."
+                        );
+
+                        // Set baseRadius for the wave based on the image dimensions.
+                        // The wave's base will align with a circle inscribed by the smaller dimension of the image.
+                        baseRadius = Math.Min(centerImage.Width, centerImage.Height) / 2.0f;
+                        Debug.WriteLine(
+                            $"AudioVisualizerEngine.DrawCircularWave - BaseRadius set from image: {baseRadius}"
+                        );
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine(
+                            $"AudioVisualizerEngine.DrawCircularWave - Error loading or drawing center image '{parameters.CircleCenterFilePath}': {ex.Message}"
+                        );
+                        // Safely dispose if partially loaded or error occurred after loading
+                        centerImage?.Dispose();
+                        centerImage = null; // Ensure it's null so it's not disposed again in finally if already handled
+
+                        // Fallback to original baseRadius calculation if image loading/drawing fails
+                        baseRadius = Math.Min(_width, _height) * parameters.BaseRadius;
+                        Debug.WriteLine(
+                            $"AudioVisualizerEngine.DrawCircularWave - Fallback BaseRadius due to image error: {baseRadius}"
+                        );
+                    }
+                }
+                else
+                {
+                    // No image path provided, or file doesn't exist. Use original baseRadius calculation.
+                    baseRadius = Math.Min(_width, _height) * parameters.BaseRadius;
+                    if (string.IsNullOrEmpty(parameters.CircleCenterFilePath))
+                    {
+                        Debug.WriteLine(
+                            $"AudioVisualizerEngine.DrawCircularWave - No center image path provided. Using default BaseRadius: {baseRadius}"
+                        );
+                    }
+                    else
+                    {
+                        Debug.WriteLine(
+                            $"AudioVisualizerEngine.DrawCircularWave - Center image file not found: {parameters.CircleCenterFilePath}. Using default BaseRadius: {baseRadius}"
+                        );
                     }
                 }
 
-                // Draw multiple rings if enabled
-                if (parameters.DrawMultipleRings)
+                // Log the final center and baseRadius being used for the wave
+                Debug.WriteLine(
+                    $"AudioVisualizerEngine.DrawCircularWave - Effective - Center: ({centerX},{centerY}), BaseRadius: {baseRadius}"
+                );
+
+                var points = new List<PointF>();
+                int sampleCount = Math.Min(samples.Length, parameters.SamplePoints);
+                Debug.WriteLine(
+                    $"AudioVisualizerEngine.DrawCircularWave - Will use {sampleCount} samples for the circle."
+                );
+
+                // Generate points for the main circle
+                for (int i = 0; i < sampleCount; i++)
                 {
-                    for (int ring = 1; ring < parameters.RingCount; ring++)
+                    float angle = (float)(i * 2 * Math.PI / sampleCount);
+                    // Ensure currentSampleIndex is within bounds of the samples array
+                    int currentSampleIndex =
+                        (samples.Length == sampleCount || samples.Length == 0)
+                            ? i % samples.Length
+                            : (i * samples.Length / sampleCount) % samples.Length;
+                    if (samples.Length == 0)
+                        currentSampleIndex = 0; // Avoid division by zero if samples is empty somehow after initial check
+
+                    float waveAmplitudeEffect =
+                        samples.Length > 0 ? samples[currentSampleIndex] : 0f;
+                    float radius =
+                        baseRadius
+                        + waveAmplitudeEffect * baseRadius * parameters.MaxRadiusMultiplier;
+
+                    // Ensure radius is not negative
+                    radius = Math.Max(0, radius);
+
+                    float x = centerX + (float)Math.Cos(angle) * radius;
+                    float y = centerY + (float)Math.Sin(angle) * radius;
+                    points.Add(new PointF(x, y));
+                    if (i < 5) // Log first few points for debugging
+                        Debug.WriteLine(
+                            $"AudioVisualizerEngine.DrawCircularWave - Point {i}: Angle={angle:F2}, SampleVal={waveAmplitudeEffect:F2}, Radius={radius:F2}, Pos=({x:F2},{y:F2})"
+                        );
+                }
+                Debug.WriteLine(
+                    $"AudioVisualizerEngine.DrawCircularWave - Generated {points.Count} points for circular wave."
+                );
+
+                if (points.Count > 1)
+                {
+                    // Draw main circle
+                    for (int i = 0; i < points.Count; i++)
                     {
-                        float ringScale = 1f - (ring * 0.2f); // Each ring is smaller
-                        float ringAlpha = 1f - (ring * 0.3f); // Each ring is more transparent
+                        int next = (i + 1) % points.Count;
+                        int currentSampleIndex =
+                            (samples.Length == sampleCount || samples.Length == 0)
+                                ? i % samples.Length
+                                : (i * samples.Length / sampleCount) % samples.Length;
+                        if (samples.Length == 0)
+                            currentSampleIndex = 0;
 
-                        var ringPoints = new List<PointF>();
-                        for (int i = 0; i < sampleCount; i++)
+                        float intensity =
+                            samples.Length > 0 ? Math.Abs(samples[currentSampleIndex]) * 2f : 0f;
+                        var color = GetColor(colorMode, intensity, (float)i / points.Count);
+                        using (var pen = new Pen(color, parameters.LineThickness))
                         {
-                            float angle = (float)(i * 2 * Math.PI / sampleCount);
-                            int currentSampleIndex =
-                                (samples.Length == sampleCount)
-                                    ? i
-                                    : (i * samples.Length / sampleCount);
-
-                            float radius =
-                                baseRadius * ringScale
-                                + samples[currentSampleIndex]
-                                    * baseRadius
-                                    * parameters.MaxRadiusMultiplier
-                                    * ringScale;
-                            float x = centerX + (float)Math.Cos(angle) * radius;
-                            float y = centerY + (float)Math.Sin(angle) * radius;
-                            ringPoints.Add(new PointF(x, y));
+                            g.DrawLine(pen, points[i], points[next]);
                         }
+                    }
 
-                        // Draw ring
-                        if (ringPoints.Count > 1)
+                    // Draw multiple rings if enabled
+                    if (parameters.DrawMultipleRings)
+                    {
+                        for (int ring = 1; ring < parameters.RingCount; ring++)
                         {
-                            for (int i = 0; i < ringPoints.Count; i++)
+                            float ringScale = 1f - (ring * 0.2f); // Each ring is smaller
+                            // Ensure ringScale is positive
+                            if (ringScale <= 0)
+                                continue;
+
+                            float ringAlphaFactor = 1f - (ring * 0.3f); // Each ring is more transparent
+                            ringAlphaFactor = Math.Max(0, Math.Min(1, ringAlphaFactor)); // Clamp alpha factor between 0 and 1
+
+                            var ringPoints = new List<PointF>();
+                            for (int i = 0; i < sampleCount; i++)
                             {
-                                int next = (i + 1) % ringPoints.Count;
+                                float angle = (float)(i * 2 * Math.PI / sampleCount);
                                 int currentSampleIndex =
-                                    (samples.Length == sampleCount)
-                                        ? i
-                                        : (i * samples.Length / sampleCount);
-                                float intensity =
-                                    Math.Abs(samples[currentSampleIndex]) * 2f * ringAlpha;
-                                var color = GetColor(
-                                    colorMode,
-                                    intensity,
-                                    (float)i / ringPoints.Count + ring * 0.1f
-                                );
-                                using (
-                                    var pen = new Pen(
-                                        Color.FromArgb((int)(ringAlpha * 255), color),
-                                        parameters.LineThickness * ringScale
-                                    )
-                                )
+                                    (samples.Length == sampleCount || samples.Length == 0)
+                                        ? i % samples.Length
+                                        : (i * samples.Length / sampleCount) % samples.Length;
+                                if (samples.Length == 0)
+                                    currentSampleIndex = 0;
+
+                                float waveAmplitudeEffect =
+                                    samples.Length > 0 ? samples[currentSampleIndex] : 0f;
+                                float radius =
+                                    (baseRadius * ringScale) // Apply ringScale to the base radius of the ring
+                                    + waveAmplitudeEffect
+                                        * baseRadius // Amplitude effect should also be based on the original baseRadius...
+                                        * parameters.MaxRadiusMultiplier
+                                        * ringScale; // ...and then scaled by ringScale
+
+                                // Ensure radius is not negative
+                                radius = Math.Max(0, radius);
+
+                                float x = centerX + (float)Math.Cos(angle) * radius;
+                                float y = centerY + (float)Math.Sin(angle) * radius;
+                                ringPoints.Add(new PointF(x, y));
+                            }
+
+                            if (ringPoints.Count > 1)
+                            {
+                                for (int i = 0; i < ringPoints.Count; i++)
                                 {
-                                    g.DrawLine(pen, ringPoints[i], ringPoints[next]);
+                                    int next = (i + 1) % ringPoints.Count;
+                                    int currentSampleIndex =
+                                        (samples.Length == sampleCount || samples.Length == 0)
+                                            ? i % samples.Length
+                                            : (i * samples.Length / sampleCount) % samples.Length;
+                                    if (samples.Length == 0)
+                                        currentSampleIndex = 0;
+
+                                    float intensity =
+                                        samples.Length > 0
+                                            ? Math.Abs(samples[currentSampleIndex]) * 2f
+                                            : 0f;
+                                    // Note: original code had 'intensity * ringAlpha' for the GetColor call,
+                                    // but then used ringAlpha again for Color.FromArgb.
+                                    // Applying alpha directly to the color from GetColor is usually better.
+                                    var baseRingColor = GetColor(
+                                        colorMode,
+                                        intensity, // Intensity for color calculation
+                                        (float)i / ringPoints.Count + ring * 0.1f // Offset color phase for different rings
+                                    );
+
+                                    Color finalRingColor = Color.FromArgb(
+                                        (int)(ringAlphaFactor * baseRingColor.A), // Apply ringAlphaFactor to the alpha of the base color
+                                        baseRingColor.R,
+                                        baseRingColor.G,
+                                        baseRingColor.B
+                                    );
+
+                                    using (
+                                        var pen = new Pen(
+                                            finalRingColor,
+                                            parameters.LineThickness * ringScale // Scale line thickness for outer rings
+                                        )
+                                    )
+                                    {
+                                        g.DrawLine(pen, ringPoints[i], ringPoints[next]);
+                                    }
                                 }
                             }
                         }
                     }
+                    Debug.WriteLine(
+                        $"AudioVisualizerEngine.DrawCircularWave - Drawn {points.Count} line segments for the circle."
+                    );
                 }
-                Debug.WriteLine(
-                    $"AudioVisualizerEngine.DrawCircularWave - Drawn {points.Count} line segments for the circle."
-                );
-            }
-            else
+                else
+                {
+                    Debug.WriteLine(
+                        "AudioVisualizerEngine.DrawCircularWave - Not enough points to draw lines."
+                    );
+                }
+            } // End of try block that starts before image loading
+            finally
             {
-                Debug.WriteLine(
-                    "AudioVisualizerEngine.DrawCircularWave - Not enough points to draw lines."
-                );
+                // Dispose the image if it was loaded and not already disposed due to an error
+                centerImage?.Dispose();
             }
         }
 
@@ -913,6 +1048,451 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             Debug.WriteLine(
                 "AudioVisualizerEngine.DrawSpectrumBars - Finished drawing spectrum bars."
             );
+        }
+
+        private void DrawCircularSpectrumBars(
+    Graphics g,
+    ColorMode colorMode,
+    CircularSpectrumBarsParameters parameters
+)
+        {
+            Debug.WriteLine("AudioVisualizerEngine.DrawCircularSpectrumBars - Drawing enhanced circular spectrum bars.");
+
+            if (_fftBuffer == null || _fftBuffer.Length < 2)
+            {
+                Debug.WriteLine("AudioVisualizerEngine.DrawCircularSpectrumBars - FFT buffer is null or too small.");
+                return;
+            }
+
+            // Enable high-quality rendering
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+            g.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighQuality;
+            g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
+            g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
+
+            float centerX = _width * parameters.CenterX;
+            float centerY = _height * parameters.CenterY;
+            float baseRadius;
+            float imageRadius = 0;
+
+            Image? centerImage = null;
+
+            try
+            {
+                // 1. Image handling with better scaling and effects
+                float imageX = 0, imageY = 0, imageWidth = 0, imageHeight = 0;
+                bool shouldDrawImage = false;
+
+                if (!string.IsNullOrEmpty(parameters.CircleCenterFilePath) && File.Exists(parameters.CircleCenterFilePath))
+                {
+                    try
+                    {
+                        centerImage = Image.FromFile(parameters.CircleCenterFilePath);
+
+                        // Better image sizing calculation
+                        float targetImageDiameter = Math.Min(_width, _height) * parameters.BaseRadiusPercentage * 2.2f;
+                        float aspectRatio = (float)centerImage.Width / centerImage.Height;
+
+                        if (aspectRatio > 1)
+                        {
+                            imageWidth = targetImageDiameter;
+                            imageHeight = targetImageDiameter / aspectRatio;
+                        }
+                        else
+                        {
+                            imageHeight = targetImageDiameter;
+                            imageWidth = targetImageDiameter * aspectRatio;
+                        }
+
+                        imageX = centerX - imageWidth / 2.0f;
+                        imageY = centerY - imageHeight / 2.0f;
+                        shouldDrawImage = true;
+
+                        imageRadius = Math.Min(imageWidth, imageHeight) / 2.0f;
+                        baseRadius = imageRadius * 1.15f; // Better spacing ratio
+
+                        Debug.WriteLine($"Enhanced image preparation - ImageRadius: {imageRadius}, BaseRadius: {baseRadius}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error loading image: {ex.Message}");
+                        centerImage?.Dispose();
+                        centerImage = null;
+                        baseRadius = Math.Min(_width, _height) * parameters.BaseRadiusPercentage;
+                    }
+                }
+                else
+                {
+                    baseRadius = Math.Min(_width, _height) * parameters.BaseRadiusPercentage;
+                }
+
+                // 2. Enhanced FFT processing with better frequency distribution
+                var processedMagnitudes = ProcessFFTData(parameters);
+
+                // 3. Enhanced bar rendering with multiple visual effects
+                DrawSpectrumBarsWithEffects(g, colorMode, parameters, centerX, centerY, baseRadius, imageRadius, processedMagnitudes);
+
+                // 4. Draw center image with enhanced effects
+                if (shouldDrawImage && centerImage != null)
+                {
+                    DrawCenterImageWithEffects(g, centerImage, imageX, imageY, imageWidth, imageHeight, parameters);
+                }
+
+                // 5. Add optional particle effects around the spectrum
+                if (parameters.EnableGlow) // Reuse this flag for particle effects
+                {
+                    DrawParticleEffects(g, colorMode, centerX, centerY, baseRadius, processedMagnitudes);
+                }
+            }
+            finally
+            {
+                centerImage?.Dispose();
+                // Reset graphics quality for performance on subsequent draws
+                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.Default;
+            }
+
+            Debug.WriteLine("AudioVisualizerEngine.DrawCircularSpectrumBars - Enhanced rendering complete.");
+        }
+
+        private float[] ProcessFFTData(CircularSpectrumBarsParameters parameters)
+        {
+            var magnitudes = new float[parameters.BarCount];
+            var smoothedMagnitudes = new float[parameters.BarCount];
+
+            // Enhanced frequency distribution with better bass/mid/treble representation
+            for (int i = 0; i < parameters.BarCount; i++)
+            {
+                int fftIndex;
+
+                if (parameters.LogarithmicScale)
+                {
+                    // Improved logarithmic scaling with better frequency distribution
+                    double logBase = Math.Pow((_fftBuffer.Length / 2.0), 1.0 / parameters.BarCount);
+                    fftIndex = (int)Math.Min(Math.Pow(logBase, i + 1), _fftBuffer.Length / 2 - 1);
+                }
+                else
+                {
+                    fftIndex = (int)((float)i / parameters.BarCount * (_fftBuffer.Length / 2 - 1));
+                }
+
+                fftIndex = Math.Max(0, Math.Min(fftIndex, _fftBuffer.Length / 2 - 1));
+
+                // Enhanced magnitude calculation with frequency-dependent amplification
+                float rawMagnitude = _fftBuffer[fftIndex];
+
+                // Apply frequency-dependent amplification (boost bass and presence)
+                float frequencyRatio = (float)i / parameters.BarCount;
+                float amplificationCurve = 1.0f;
+
+                if (frequencyRatio < 0.1f) // Bass boost
+                    amplificationCurve = 2.0f - frequencyRatio * 10f;
+                else if (frequencyRatio > 0.7f) // Treble presence
+                    amplificationCurve = 1.0f + (frequencyRatio - 0.7f) * 1.5f;
+
+                magnitudes[i] = rawMagnitude * parameters.AmplitudeMultiplier * amplificationCurve;
+            }
+
+            // Apply temporal smoothing to reduce jitter
+            for (int i = 0; i < parameters.BarCount; i++)
+            {
+                smoothedMagnitudes[i] = magnitudes[i];
+
+                // Smooth with neighboring bars for more organic look
+                if (i > 0 && i < parameters.BarCount - 1)
+                {
+                    smoothedMagnitudes[i] = (magnitudes[i - 1] * 0.2f + magnitudes[i] * 0.6f + magnitudes[i + 1] * 0.2f);
+                }
+            }
+
+            return smoothedMagnitudes;
+        }
+
+        private void DrawSpectrumBarsWithEffects(
+            Graphics g,
+            ColorMode colorMode,
+            CircularSpectrumBarsParameters parameters,
+            float centerX,
+            float centerY,
+            float baseRadius,
+            float imageRadius,
+            float[] magnitudes)
+        {
+            double anglePerBar = (2.0 * Math.PI) / parameters.BarCount;
+            double barAngularWidth = anglePerBar * parameters.BarFillRatio;
+            double halfBarWidth = barAngularWidth / 2.0;
+
+            // Create advanced gradient brushes for better visual appeal
+            var gradientCenter = new PointF(centerX, centerY);
+
+            for (int i = 0; i < parameters.BarCount; i++)
+            {
+                float magnitude = magnitudes[i];
+                float barHeight = magnitude * baseRadius * parameters.BarHeightScaleFactor;
+                barHeight = Math.Min(barHeight, baseRadius * parameters.MaxBarHeightRatio);
+                barHeight = Math.Max(0, barHeight);
+
+                if (barHeight < 0.5f) continue; // Skip tiny bars
+
+                // Enhanced angle calculations with rotation animation
+                double rotationOffset = _frameCount * 0.002; // Slow rotation
+                double barCenterAngle = i * anglePerBar + rotationOffset;
+                double barStartAngle = barCenterAngle - halfBarWidth;
+                double barEndAngle = barCenterAngle + halfBarWidth;
+
+                // Calculate bar geometry with sub-pixel precision
+                var barGeometry = CalculateBarGeometry(centerX, centerY, baseRadius, barHeight, barStartAngle, barEndAngle);
+
+                // Enhanced color calculation with more dynamic range
+                var barColor = GetEnhancedColor(colorMode, magnitude, (float)i / parameters.BarCount, barHeight, baseRadius);
+
+                // Draw multiple layers for depth effect
+                DrawBarWithLayers(g, barGeometry, barColor, parameters, magnitude);
+
+                // Draw mirrored bars with enhanced effects
+                if (parameters.MirrorBars && baseRadius > barHeight * 1.5f)
+                {
+                    DrawMirroredBar(g, centerX, centerY, baseRadius, imageRadius, barHeight, barStartAngle, barEndAngle, barColor, parameters, magnitude);
+                }
+
+                // Add reactive pulse effects for high-energy bars
+                if (magnitude > 0.7f && parameters.EnableGlow)
+                {
+                    DrawPulseEffect(g, centerX, centerY, barCenterAngle, baseRadius + barHeight, barColor, magnitude);
+                }
+            }
+        }
+
+        private BarGeometry CalculateBarGeometry(float centerX, float centerY, float baseRadius, float barHeight, double startAngle, double endAngle)
+        {
+            // Calculate points with sub-pixel precision for smoother rendering
+            var geometry = new BarGeometry();
+
+            float outerRadius = baseRadius + barHeight;
+
+            // Use more points for smoother curves on larger bars
+            int curvePoints = Math.Max(3, (int)(barHeight / 10)); // More points for taller bars
+
+            geometry.InnerPoints = new PointF[curvePoints];
+            geometry.OuterPoints = new PointF[curvePoints];
+
+            for (int i = 0; i < curvePoints; i++)
+            {
+                double angle = startAngle + (endAngle - startAngle) * i / (curvePoints - 1);
+
+                geometry.InnerPoints[i] = new PointF(
+                    centerX + (float)(Math.Cos(angle) * baseRadius),
+                    centerY + (float)(Math.Sin(angle) * baseRadius)
+                );
+
+                geometry.OuterPoints[i] = new PointF(
+                    centerX + (float)(Math.Cos(angle) * outerRadius),
+                    centerY + (float)(Math.Sin(angle) * outerRadius)
+                );
+            }
+
+            return geometry;
+        }
+
+        private Color GetEnhancedColor(ColorMode colorMode, float magnitude, float position, float barHeight, float baseRadius)
+        {
+            // Enhanced color calculation with more vibrant and dynamic colors
+            float intensity = Math.Min(1.0f, magnitude * 2.0f);
+            float heightRatio = barHeight / (baseRadius * 0.8f); // Normalize height
+
+            Color baseColor = GetColor(colorMode, intensity, position);
+
+            // Add height-based color modification for more dynamic appearance
+            if (heightRatio > 0.5f)
+            {
+                // Brighten tall bars
+                float brightenFactor = Math.Min(1.5f, 1.0f + heightRatio);
+                int r = Math.Min(255, (int)(baseColor.R * brightenFactor));
+                int gr = Math.Min(255, (int)(baseColor.G * brightenFactor));
+                int b = Math.Min(255, (int)(baseColor.B * brightenFactor));
+                baseColor = Color.FromArgb(baseColor.A, r, gr, b);
+            }
+
+            return baseColor;
+        }
+
+        private void DrawBarWithLayers(Graphics g, BarGeometry geometry, Color baseColor, CircularSpectrumBarsParameters parameters, float magnitude)
+        {
+            // Create polygon from geometry points
+            var allPoints = new List<PointF>();
+            allPoints.AddRange(geometry.InnerPoints);
+            geometry.OuterPoints.Reverse();
+            var geom = geometry.OuterPoints;
+            geom.Reverse();
+            allPoints.AddRange(geom);
+
+            var polygon = allPoints.ToArray();
+
+            // Layer 1: Glow effect (if enabled)
+            if (parameters.EnableGlow && magnitude > 0.3f)
+            {
+                using (var glowBrush = new SolidBrush(Color.FromArgb(
+                    Math.Min(255, parameters.GlowIntensity * 2),
+                    baseColor.R, baseColor.G, baseColor.B)))
+                {
+                    // Expand polygon slightly for glow
+                    var glowPolygon = ExpandPolygon(polygon, parameters.GlowOffset);
+                    g.FillPolygon(glowBrush, glowPolygon);
+                }
+            }
+
+            // Layer 2: Main bar with gradient
+            using (var mainBrush = CreateGradientBrush(geometry, baseColor, magnitude))
+            {
+                g.FillPolygon(mainBrush, polygon);
+            }
+
+            // Layer 3: Highlight edge for 3D effect
+            if (magnitude > 0.5f)
+            {
+                using (var highlightPen = new Pen(Color.FromArgb(100, Color.White), 1.0f))
+                {
+                    // Draw highlight on the outer edge
+                    g.DrawLines(highlightPen, geometry.OuterPoints);
+                }
+            }
+        }
+
+        private Brush CreateGradientBrush(BarGeometry geometry, Color baseColor, float magnitude)
+        {
+            if (geometry.InnerPoints.Length < 2 || geometry.OuterPoints.Length < 2)
+                return new SolidBrush(baseColor);
+
+            // Create radial gradient from inner to outer edge
+            var innerCenter = GetCenterPoint(geometry.InnerPoints);
+            var outerCenter = GetCenterPoint(geometry.OuterPoints);
+
+            // Create gradient that goes from darker inner to brighter outer
+            var darkerColor = Color.FromArgb(
+                baseColor.A,
+                Math.Max(0, baseColor.R - 40),
+                Math.Max(0, baseColor.G - 40),
+                Math.Max(0, baseColor.B - 40)
+            );
+
+            try
+            {
+                return new System.Drawing.Drawing2D.LinearGradientBrush(
+                    innerCenter, outerCenter, darkerColor, baseColor);
+            }
+            catch
+            {
+                return new SolidBrush(baseColor);
+            }
+        }
+
+        private void DrawMirroredBar(Graphics g, float centerX, float centerY, float baseRadius, float imageRadius,
+            float barHeight, double startAngle, double endAngle, Color barColor, CircularSpectrumBarsParameters parameters, float magnitude)
+        {
+            float mirrorInnerRadius = Math.Max(imageRadius * 1.05f, baseRadius - barHeight);
+
+            var mirrorGeometry = CalculateBarGeometry(centerX, centerY, mirrorInnerRadius, baseRadius - mirrorInnerRadius, startAngle, endAngle);
+
+            // Slightly transparent for layered effect
+            var mirrorColor = Color.FromArgb(Math.Max(50, barColor.A - 100), barColor.R, barColor.G, barColor.B);
+
+            DrawBarWithLayers(g, mirrorGeometry, mirrorColor, parameters, magnitude * 0.7f);
+        }
+
+        private void DrawCenterImageWithEffects(Graphics g, Image centerImage, float imageX, float imageY, float imageWidth, float imageHeight, CircularSpectrumBarsParameters parameters)
+        {
+            // Add subtle drop shadow
+            using (var shadowBrush = new SolidBrush(Color.FromArgb(50, 0, 0, 0)))
+            {
+                g.FillEllipse(shadowBrush, imageX + 3, imageY + 3, imageWidth, imageHeight);
+            }
+
+            // Create circular clipping path for the image
+            using (var clipPath = new System.Drawing.Drawing2D.GraphicsPath())
+            {
+                clipPath.AddEllipse(imageX, imageY, imageWidth, imageHeight);
+                var oldClip = g.Clip;
+                g.SetClip(clipPath);
+
+                // Draw the image with high quality scaling
+                g.DrawImage(centerImage, imageX, imageY, imageWidth, imageHeight);
+
+                g.Clip = oldClip;
+            }
+
+            // Add subtle outer glow to the image
+            using (var glowPen = new Pen(Color.FromArgb(30, Color.White), 3.0f))
+            {
+                g.DrawEllipse(glowPen, imageX - 1, imageY - 1, imageWidth + 2, imageHeight + 2);
+            }
+        }
+
+        private void DrawParticleEffects(Graphics g, ColorMode colorMode, float centerX, float centerY, float baseRadius, float[] magnitudes)
+        {
+            // Add floating particles that react to the music
+            var random = new Random(_frameCount); // Deterministic but animated
+
+            for (int i = 0; i < Math.Min(20, magnitudes.Length / 3); i++)
+            {
+                if (magnitudes[i * 3] < 0.4f) continue; // Only show particles for active frequencies
+
+                float angle = (float)(random.NextDouble() * Math.PI * 2);
+                float distance = baseRadius + magnitudes[i * 3] * baseRadius * 0.5f + 20;
+
+                float particleX = centerX + (float)Math.Cos(angle) * distance;
+                float particleY = centerY + (float)Math.Sin(angle) * distance;
+
+                var particleColor = GetColor(colorMode, magnitudes[i * 3], (float)i / magnitudes.Length);
+                var alpha = Math.Max(50, Math.Min(200, (int)(magnitudes[i * 3] * 255)));
+
+                using (var particleBrush = new SolidBrush(Color.FromArgb(alpha, particleColor)))
+                {
+                    float size = 2f + magnitudes[i * 3] * 4f;
+                    g.FillEllipse(particleBrush, particleX - size / 2, particleY - size / 2, size, size);
+                }
+            }
+        }
+
+        private void DrawPulseEffect(Graphics g, float centerX, float centerY, double angle, float radius, Color color, float magnitude)
+        {
+            // Draw expanding pulse rings for high-energy bars
+            float pulseX = centerX + (float)Math.Cos(angle) * radius;
+            float pulseY = centerY + (float)Math.Sin(angle) * radius;
+
+            for (int ring = 0; ring < 3; ring++)
+            {
+                float ringRadius = 5f + ring * 8f + magnitude * 10f;
+                int alpha = Math.Max(10, 100 - ring * 30);
+
+                using (var pulsePen = new Pen(Color.FromArgb(alpha, color), 2f - ring * 0.5f))
+                {
+                    g.DrawEllipse(pulsePen, pulseX - ringRadius, pulseY - ringRadius, ringRadius * 2, ringRadius * 2);
+                }
+            }
+        }
+
+        // Helper methods
+        private PointF[] ExpandPolygon(PointF[] polygon, float expansion)
+        {
+            var center = GetCenterPoint(polygon);
+            return polygon.Select(p => new PointF(
+                center.X + (p.X - center.X) * (1 + expansion / 100f),
+                center.Y + (p.Y - center.Y) * (1 + expansion / 100f)
+            )).ToArray();
+        }
+
+        private PointF GetCenterPoint(PointF[] points)
+        {
+            float avgX = points.Average(p => p.X);
+            float avgY = points.Average(p => p.Y);
+            return new PointF(avgX, avgY);
+        }
+
+        // Helper class for bar geometry
+        private class BarGeometry
+        {
+            public PointF[] InnerPoints { get; set; }
+            public PointF[] OuterPoints { get; set; }
         }
 
         private void DrawParticleFlow(

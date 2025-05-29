@@ -49,6 +49,7 @@ public partial class AudioVisualizationSettingsViewModel : DialogViewModelBase
             OnPropertyChanged(nameof(IsKaleidoscopeWaveMode));
             OnPropertyChanged(nameof(IsDNAHelixMode));
             OnPropertyChanged(nameof(IsAuroraMode));
+            OnPropertyChanged(nameof(IsCircularSpectrumBarsMode));
         }
     }
 
@@ -90,6 +91,21 @@ public partial class AudioVisualizationSettingsViewModel : DialogViewModelBase
         }
     }
 
+    public string CircleCenterImageFilePath
+    {
+        get => _settingsService.CircleCenterFilePath ?? string.Empty;
+        set
+        {
+            var newValue = string.IsNullOrWhiteSpace(value) ? null : value;
+            if (_settingsService.CircleCenterFilePath != newValue)
+            {
+                _settingsService.CircleCenterFilePath = newValue;
+                OnPropertyChanged();
+                _settingsService.Save();
+            }
+        }
+    }
+
     // Common visualization settings
     public double ZoomLevel
     {
@@ -127,6 +143,12 @@ public partial class AudioVisualizationSettingsViewModel : DialogViewModelBase
     {
         get => _settingsService.WaveFrequency;
         set => _settingsService.WaveFrequency = Math.Clamp(value, 0.1, 5.0);
+    }
+
+    public float LineThickness
+    {
+        get => _settingsService.LineThickness;
+        set => _settingsService.LineThickness = Math.Clamp(value, 1f, 50f);
     }
 
     // Spectrum bars settings
@@ -194,6 +216,112 @@ public partial class AudioVisualizationSettingsViewModel : DialogViewModelBase
         set => _settingsService.AuroraFlowSpeed = Math.Clamp(value, 0.1, 3.0);
     }
 
+    public bool IsCircularSpectrumBarsMode =>
+        VisualizationMode == VisualizationMode.CircularSpectrumBars;
+
+    public int CircularBarCount
+    {
+        get => _settingsService.BarCount;
+        set => _settingsService.BarCount = Math.Clamp(value, 10, 200);
+    }
+
+    public double CircularAmplitudeMultiplier
+    {
+        get => _settingsService.WaveAmplitude;
+        set => _settingsService.WaveAmplitude = Math.Clamp(value, 1.0, 50.0);
+    }
+
+    public bool CircularLogarithmicScale
+    {
+        get => _settingsService.SpectrumLogarithmicScale;
+        set => _settingsService.SpectrumLogarithmicScale = value;
+    }
+
+    public double CircularCenterX
+    {
+        get => _settingsService.XPosition;
+        set => _settingsService.XPosition = Math.Clamp(value, 0.0, 1.0);
+    }
+
+    public double CircularCenterY
+    {
+        get => _settingsService.YPosition;
+        set => _settingsService.YPosition = Math.Clamp(value, 0.0, 1.0);
+    }
+
+    public string CircularCircleCenterFilePath
+    {
+        get => _settingsService.CircleCenterFilePath ?? string.Empty;
+        set
+        {
+            var newValue = string.IsNullOrWhiteSpace(value) ? null : value;
+            if (_settingsService.CircleCenterFilePath != newValue)
+            {
+                _settingsService.CircleCenterFilePath = newValue;
+                OnPropertyChanged();
+                _settingsService.Save();
+            }
+        }
+    }
+
+    public double CircularBaseRadiusPercentage
+    {
+        get => _settingsService.BaseRadius;
+        set => _settingsService.BaseRadius = (float)Math.Clamp(value, 0.05, 0.5);
+    }
+
+    public double CircularBarFillRatio
+    {
+        get => _settingsService.CircularSpectrumBarFillRatio;
+        set => _settingsService.CircularSpectrumBarFillRatio = (float)Math.Clamp(value, 0.1, 1.0);
+    }
+
+    public double CircularBarHeightScaleFactor
+    {
+        get => _settingsService.CircularSpectrumBarHeightScaleFactor;
+        set =>
+            _settingsService.CircularSpectrumBarHeightScaleFactor = (float)
+                Math.Clamp(value, 0.1, 5.0);
+    }
+
+    public double CircularMaxBarHeightRatio
+    {
+        get => _settingsService.CircularSpectrumMaxBarHeightRatio;
+        set =>
+            _settingsService.CircularSpectrumMaxBarHeightRatio = (float)Math.Clamp(value, 0.1, 2.0);
+    }
+
+    public bool CircularMirrorBars
+    {
+        get => _settingsService.CircularSpectrumMirrorBars;
+        set => _settingsService.CircularSpectrumMirrorBars = value;
+    }
+
+    public bool CircularEnableGlow
+    {
+        get => _settingsService.CircularSpectrumEnableGlow;
+        set => _settingsService.CircularSpectrumEnableGlow = value;
+    }
+
+    public int CircularGlowIntensity
+    {
+        get => (int)_settingsService.CircularSpectrumGlowIntensity;
+        set => _settingsService.CircularSpectrumGlowIntensity = Math.Clamp(value, 0, 255);
+    }
+
+    public double CircularGlowOffset
+    {
+        get => _settingsService.CircularSpectrumGlowOffset;
+        set => _settingsService.CircularSpectrumGlowOffset = (float)Math.Clamp(value, 0.0, 10.0);
+    }
+
+    public double CircularGlowAngularSpread
+    {
+        get => _settingsService.CircularSpectrumGlowAngularSpread;
+        set =>
+            _settingsService.CircularSpectrumGlowAngularSpread = (float)Math.Clamp(value, 0.0, 0.1);
+    }
+
     // Visibility properties for mode-specific settings
     public bool IsBasicWaveformMode => VisualizationMode == VisualizationMode.BasicWaveform;
     public bool IsCircularWaveMode => VisualizationMode == VisualizationMode.CircularWave;
@@ -252,6 +380,30 @@ public partial class AudioVisualizationSettingsViewModel : DialogViewModelBase
         }
     }
 
+    [RelayCommand]
+    private async Task BrowseCircleCenterImageAsync()
+    {
+        try
+        {
+            var selectedFile = await _dialogManager.ShowFilePickerAsync(
+                "Select Circle Center PNG Image",
+                CircleCenterImageFilePath ?? "", // Use the ViewModel property
+                new[] { "PNG Files|*.png", "All Files|*.*" } // Filter specifically for PNG
+            );
+
+            if (!string.IsNullOrEmpty(selectedFile))
+            {
+                CircleCenterImageFilePath = selectedFile; // Setter will save
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"Error Browse for circle center image file: {ex.Message}"
+            );
+        }
+    }
+
     // Command to clear background video
     [RelayCommand]
     private void ClearBackgroundVideo()
@@ -266,6 +418,12 @@ public partial class AudioVisualizationSettingsViewModel : DialogViewModelBase
     {
         BackgroundImagePath = string.Empty;
         _settingsService.Save();
+    }
+
+    [RelayCommand]
+    private void ClearCircleCenterImage()
+    {
+        CircleCenterImageFilePath = string.Empty; // Setter will save
     }
 
     protected override void Dispose(bool disposing)
