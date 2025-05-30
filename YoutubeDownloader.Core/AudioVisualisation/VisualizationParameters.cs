@@ -121,6 +121,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
 
         /// <summary>
         /// Multiplier for the FFT magnitude to determine bar height.
+        /// Applied after frequency-dependent amplification.
         /// </summary>
         public float AmplitudeMultiplier { get; set; }
 
@@ -130,7 +131,40 @@ namespace YoutubeDownloader.Core.AudioVisualisation
         /// </summary>
         public bool LogarithmicScale { get; set; }
 
+        // --- NEW: Smoothing Parameters ---
+        /// <summary>
+        /// Enables smoothing of bar heights across neighboring bars for a more organic look.
+        /// </summary>
+        public bool EnableSpatialSmoothing { get; set; }
+
+        /// <summary>
+        /// Weight of the bar to the left in spatial smoothing (sum of Low, Mid, High should ideally be 1.0).
+        /// </summary>
+        public float SpatialSmoothFactorLow { get; set; }
+
+        /// <summary>
+        /// Weight of the current bar in spatial smoothing.
+        /// </summary>
+        public float SpatialSmoothFactorMid { get; set; }
+
+        /// <summary>
+        /// Weight of the bar to the right in spatial smoothing.
+        /// </summary>
+        public float SpatialSmoothFactorHigh { get; set; }
+
+        /// <summary>
+        /// Enables smoothing of bar height changes over time (across frames) to reduce jitter.
+        /// </summary>
+        public bool EnableTemporalSmoothing { get; set; }
+
+        /// <summary>
+        /// Smoothing factor for temporal smoothing (0.0 to 1.0).
+        /// Lower values = smoother/slower response; Higher values = faster/more jittery response.
+        /// </summary>
+        public float TemporalSmoothFactor { get; set; }
+
         // --- Circular Arrangement & Base ---
+        // ... (your existing properties: CenterX, CenterY, etc.)
         /// <summary>
         /// Horizontal center of the circular spectrum (percentage of screen width, 0.0 to 1.0).
         /// </summary>
@@ -203,29 +237,36 @@ namespace YoutubeDownloader.Core.AudioVisualisation
         public override void SetDefaults()
         {
             // Core Spectrum
-            BarCount = 64;
-            AmplitudeMultiplier = 15f; // Adjusted as bar heights are now relative to baseRadius
+            BarCount = 120;
+            AmplitudeMultiplier = 15f; // Applied in ProcessFFTData
             LogarithmicScale = true;
+
+            // NEW: Smoothing Defaults
+            EnableSpatialSmoothing = true;
+            SpatialSmoothFactorLow = 0.20f;
+            SpatialSmoothFactorMid = 0.60f;
+            SpatialSmoothFactorHigh = 0.20f;
+            EnableTemporalSmoothing = true;
+            TemporalSmoothFactor = 0.4f; // A good starting point, adjust based on desired responsiveness
 
             // Circular Arrangement
             CenterX = 0.5f;
             CenterY = 0.5f;
             CircleCenterFilePath = "";
-            BaseRadiusPercentage = 0.20f; // Inner radius for bars to start from (20% of min screen dimension)
+            BaseRadiusPercentage = 0.20f;
 
             // Bar Appearance
-            BarFillRatio = 0.85f; // 85% bar, 15% total spacing
-            BarHeightScaleFactor = 1.2f; // How much FFT magnitude contributes to bar length relative to baseRadius
-            MaxBarHeightRatio = 0.80f; // Max bar length is 80% of baseRadius
+            BarFillRatio = 0.85f;
+            BarHeightScaleFactor = 1.2f;
+            MaxBarHeightRatio = 0.80f;
 
             // Effects
             MirrorBars = false;
             EnableGlow = true;
-            GlowIntensity = 70; // Alpha for glow (0-255)
-            GlowOffset = 2.5f; // Radial expansion for glow
-            GlowAngularSpread = 0.015f; // Radians for angular glow expansion (per side)
-
-            UseContinuousWaves = true;
+            GlowIntensity = 70;
+            GlowOffset = 2.5f;
+            GlowAngularSpread = 0.015f;
+            UseContinuousWaves = true; // Default for your existing parameter
         }
     }
 

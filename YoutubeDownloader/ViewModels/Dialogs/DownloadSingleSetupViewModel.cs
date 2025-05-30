@@ -80,6 +80,7 @@ public partial class DownloadSingleSetupViewModel(
 
         if (string.IsNullOrWhiteSpace(filePath))
             return;
+        filePath = filePath.Replace("'", "quote").Replace(" ", "_");
 
         // Download does not start immediately, so lock in the file path to avoid conflicts
         DirectoryEx.CreateDirectoryForFile(filePath);

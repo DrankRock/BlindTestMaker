@@ -19,32 +19,32 @@ namespace YoutubeDownloader.Core.AudioVisualisation
         public AdvancedVisualizer(int width, int height, int fps, string outputPath)
             : base(width, height, fps, outputPath)
         {
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AdvancedVisualizer.Constructor - Initializing with Width: {width}, Height: {height}, FPS: {fps}, OutputPath: {outputPath}"
             );
             _waveformGrid = new float[50, 50];
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AdvancedVisualizer.Constructor - WaveformGrid initialized with dimensions 50x50."
             );
             InitializeLightBeams();
-            Debug.WriteLine(
+            DebugWrite.Line(
                 "AdvancedVisualizer.Constructor - AdvancedVisualizer initialization complete."
             );
         }
 
         public void DrawMatrixRain(Graphics g, float[] samples, ColorMode colorMode)
         {
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AdvancedVisualizer.DrawMatrixRain - Drawing with {samples.Length} samples. Frame: {_frameCount}"
             );
             if (samples.Length == 0)
             {
-                Debug.WriteLine("AdvancedVisualizer.DrawMatrixRain - No samples to draw.");
+                DebugWrite.Line("AdvancedVisualizer.DrawMatrixRain - No samples to draw.");
                 return;
             }
 
             int columns = _width / 20;
-            Debug.WriteLine($"AdvancedVisualizer.DrawMatrixRain - Columns: {columns}");
+            DebugWrite.Line($"AdvancedVisualizer.DrawMatrixRain - Columns: {columns}");
 
             for (int col = 0; col < columns; col++)
             {
@@ -52,7 +52,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                 // Ensure sample index is within bounds
                 int sampleIndex = col % samples.Length;
                 float audioInfluence = samples[sampleIndex] * 10;
-                // if (col == 0) Debug.WriteLine($"AdvancedVisualizer.DrawMatrixRain - Col 0: X={x}, SampleVal={samples[sampleIndex]}, AudioInfluence={audioInfluence}");
+                // if (col == 0) DebugWrite.Line($"AdvancedVisualizer.DrawMatrixRain - Col 0: X={x}, SampleVal={samples[sampleIndex]}, AudioInfluence={audioInfluence}");
 
 
                 for (int row = 0; row < _height / 20; row++)
@@ -87,23 +87,23 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                     }
                 }
             }
-            Debug.WriteLine("AdvancedVisualizer.DrawMatrixRain - Finished drawing matrix rain.");
+            DebugWrite.Line("AdvancedVisualizer.DrawMatrixRain - Finished drawing matrix rain.");
         }
 
         public void Draw3DWaveformGrid(Graphics g, float[] samples, ColorMode colorMode)
         {
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AdvancedVisualizer.Draw3DWaveformGrid - Drawing with {samples.Length} samples."
             );
             if (samples.Length == 0)
             {
-                Debug.WriteLine(
+                DebugWrite.Line(
                     "AdvancedVisualizer.Draw3DWaveformGrid - No samples for grid update."
                 );
                 return;
             }
 
-            Debug.WriteLine(
+            DebugWrite.Line(
                 "AdvancedVisualizer.Draw3DWaveformGrid - Updating grid with new audio data."
             );
             // Shift existing data back
@@ -116,13 +116,13 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             }
 
             // Add new row of data from current samples
-            Debug.WriteLine("AdvancedVisualizer.Draw3DWaveformGrid - Adding new row to grid.");
+            DebugWrite.Line("AdvancedVisualizer.Draw3DWaveformGrid - Adding new row to grid.");
             for (int x = 0; x < 50; x++)
             {
                 int sampleIndex = (x * samples.Length) / 50; // Map grid column to sample index
                 _waveformGrid[x, 0] = samples[sampleIndex];
                 if (x == 0)
-                    Debug.WriteLine(
+                    DebugWrite.Line(
                         $"AdvancedVisualizer.Draw3DWaveformGrid - Grid[0,0] set to sample[{sampleIndex}] = {samples[sampleIndex]}"
                     );
             }
@@ -133,7 +133,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             float amplitudeScale = _height / 10f; // Scale for waveform height
             float depthFactor = 0.005f; // Controls perspective intensity
 
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AdvancedVisualizer.Draw3DWaveformGrid - Drawing 3D projection. Center: ({centerX},{centerY}), BaseScale: {baseScale}"
             );
 
@@ -168,7 +168,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                     );
 
                     if (x == 0 && z == 0)
-                        Debug.WriteLine(
+                        DebugWrite.Line(
                             $"AdvancedVisualizer.Draw3DWaveformGrid - First segment: ({screenX1},{screenY1}) to ({screenX2},{screenY2}), Persp1={perspective1}"
                         );
 
@@ -213,19 +213,19 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                     }
                 }
             }
-            Debug.WriteLine("AdvancedVisualizer.Draw3DWaveformGrid - Finished drawing grid.");
+            DebugWrite.Line("AdvancedVisualizer.Draw3DWaveformGrid - Finished drawing grid.");
         }
 
         public void DrawLaserShow(Graphics g, float[] samples, ColorMode colorMode)
         {
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AdvancedVisualizer.DrawLaserShow - Drawing with {samples.Length} samples. Beam count: {_lightBeams.Count}"
             );
 
             _rotationAngle += _smoothBass * 0.05f + 0.001f; // Slow base rotation + bass influence
             if (_rotationAngle > Math.PI * 2)
                 _rotationAngle -= (float)(Math.PI * 2);
-            // Debug.WriteLine($"AdvancedVisualizer.DrawLaserShow - Global RotationAngle: {_rotationAngle}");
+            // DebugWrite.Line($"AdvancedVisualizer.DrawLaserShow - Global RotationAngle: {_rotationAngle}");
 
 
             foreach (var beam in _lightBeams)
@@ -248,7 +248,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                     0.1f,
                     Math.Min(1f, _smoothHigh * 1.5f + _smoothMid * 0.5f)
                 ); // Highs and mids control intensity
-                // if (_lightBeams.First() == beam) Debug.WriteLine($"AdvancedVisualizer.DrawLaserShow - Beam 0: Angle={beam.Angle}, Length={beam.Length}, Intensity={beam.Intensity}");
+                // if (_lightBeams.First() == beam) DebugWrite.Line($"AdvancedVisualizer.DrawLaserShow - Beam 0: Angle={beam.Angle}, Length={beam.Length}, Intensity={beam.Intensity}");
             }
 
             float centerX = _width / 2f;
@@ -297,17 +297,17 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                     g.DrawLine(pen, centerX, centerY, endX, endY);
                 }
             }
-            Debug.WriteLine("AdvancedVisualizer.DrawLaserShow - Finished drawing lasers.");
+            DebugWrite.Line("AdvancedVisualizer.DrawLaserShow - Finished drawing lasers.");
         }
 
         public void DrawRippleField(Graphics g, float[] samples, ColorMode colorMode)
         {
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AdvancedVisualizer.DrawRippleField - Drawing with {samples.Length} samples. Ripple count: {_ripples.Count}"
             );
             if (samples.Length == 0)
             {
-                Debug.WriteLine(
+                DebugWrite.Line(
                     "AdvancedVisualizer.DrawRippleField - No samples for ripple logic."
                 );
             }
@@ -320,7 +320,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                     .Select(Math.Abs)
                     .Average();
             }
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AdvancedVisualizer.DrawRippleField - CurrentAmplitude: {currentAmplitude}"
             );
 
@@ -331,7 +331,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                 && _random.NextDouble() < 0.2 + _smoothBass * 0.5
             )
             {
-                Debug.WriteLine("AdvancedVisualizer.DrawRippleField - Spawning new ripple.");
+                DebugWrite.Line("AdvancedVisualizer.DrawRippleField - Spawning new ripple.");
                 var newRipple = new RippleEffect
                 {
                     X = _random.Next(_width),
@@ -343,7 +343,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                     Speed = 3 + _smoothMid * 5f, // Mid frequencies affect ripple speed
                 };
                 _ripples.Add(newRipple);
-                Debug.WriteLine(
+                DebugWrite.Line(
                     $"AdvancedVisualizer.DrawRippleField - New Ripple: X={newRipple.X}, Y={newRipple.Y}, MaxR={newRipple.MaxRadius}, Intensity={newRipple.Intensity}, Speed={newRipple.Speed}"
                 );
             }
@@ -357,7 +357,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                 if (ripple.Radius > ripple.MaxRadius || ripple.Intensity < 0.005f)
                 {
                     _ripples.RemoveAt(i);
-                    // Debug.WriteLine($"AdvancedVisualizer.DrawRippleField - Ripple removed. Radius={ripple.Radius}, Intensity={ripple.Intensity}");
+                    // DebugWrite.Line($"AdvancedVisualizer.DrawRippleField - Ripple removed. Radius={ripple.Radius}, Intensity={ripple.Intensity}");
                     continue;
                 }
 
@@ -400,19 +400,19 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                         }
                     }
                 }
-                // if (i==0) Debug.WriteLine($"AdvancedVisualizer.DrawRippleField - Ripple 0 updated: Radius={ripple.Radius}, Intensity={ripple.Intensity}");
+                // if (i==0) DebugWrite.Line($"AdvancedVisualizer.DrawRippleField - Ripple 0 updated: Radius={ripple.Radius}, Intensity={ripple.Intensity}");
             }
-            Debug.WriteLine("AdvancedVisualizer.DrawRippleField - Finished drawing ripples.");
+            DebugWrite.Line("AdvancedVisualizer.DrawRippleField - Finished drawing ripples.");
         }
 
         public void DrawFractalTree(Graphics g, float[] samples, ColorMode colorMode)
         {
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AdvancedVisualizer.DrawFractalTree - Drawing with {samples.Length} samples."
             );
             if (samples.Length == 0)
             {
-                Debug.WriteLine("AdvancedVisualizer.DrawFractalTree - No samples to draw tree.");
+                DebugWrite.Line("AdvancedVisualizer.DrawFractalTree - No samples to draw tree.");
                 return;
             }
 
@@ -425,7 +425,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             initialDepth = Math.Min(initialDepth, 10); // Cap depth
             initialDepth = Math.Max(5, initialDepth);
 
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AdvancedVisualizer.DrawFractalTree - CenterX: {centerX}, BaseY: {baseY}, TrunkHeight: {trunkHeight}, InitialDepth: {initialDepth}"
             );
 
@@ -441,7 +441,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                 colorMode,
                 0
             );
-            Debug.WriteLine("AdvancedVisualizer.DrawFractalTree - Finished drawing fractal tree.");
+            DebugWrite.Line("AdvancedVisualizer.DrawFractalTree - Finished drawing fractal tree.");
         }
 
         private void DrawBranch(
@@ -457,10 +457,10 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             int sampleOffset // To vary audio influence along branches
         )
         {
-            // Debug.WriteLine($"AdvancedVisualizer.DrawBranch - Depth: {depth}, Angle: {angle}, Start: ({x1},{y1}), End: ({x2},{y2}), SampleOffset: {sampleOffset}");
+            // DebugWrite.Line($"AdvancedVisualizer.DrawBranch - Depth: {depth}, Angle: {angle}, Start: ({x1},{y1}), End: ({x2},{y2}), SampleOffset: {sampleOffset}");
             if (depth <= 0 || y2 < 0 || y2 > _height || x2 < 0 || x2 > _width) // Stop if too deep or off-screen
             {
-                // Debug.WriteLine("AdvancedVisualizer.DrawBranch - Branch limit reached (depth or off-screen).");
+                // DebugWrite.Line("AdvancedVisualizer.DrawBranch - Branch limit reached (depth or off-screen).");
                 return;
             }
 
@@ -558,7 +558,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
         {
             _lightBeams.Clear();
             int beamCount = 6 + _random.Next(0, 5); // Randomize beam count slightly
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AdvancedVisualizer.InitializeLightBeams - Initializing {beamCount} light beams."
             );
             for (int i = 0; i < beamCount; i++)
@@ -573,11 +573,11 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                     Intensity = 0.5f + _random.NextSingle() * 0.5f,
                 };
                 _lightBeams.Add(beam);
-                Debug.WriteLine(
+                DebugWrite.Line(
                     $"AdvancedVisualizer.InitializeLightBeams - Beam {i}: Angle={beam.Angle}, Length={beam.Length}, Speed={beam.RotationSpeed}, Intensity={beam.Intensity}"
                 );
             }
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AdvancedVisualizer.InitializeLightBeams - {_lightBeams.Count} light beams initialized."
             );
         }

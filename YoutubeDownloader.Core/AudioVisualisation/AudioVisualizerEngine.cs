@@ -66,6 +66,12 @@ namespace YoutubeDownloader.Core.AudioVisualisation
         private readonly int _historySize = 30;
         public List<float> _audioSamples;
 
+        // NEW: Constants for audio processing (previously from the non-existent VisualizationConstants)
+        private const float BASS_BOOST_THRESHOLD = 0.15f; // Example: Affects first 15% of bars
+        private const float BASS_AMPLIFICATION = 1.8f; // Example: 1.8x boost in the bass band
+        private const float TREBLE_BOOST_THRESHOLD = 0.65f; // Example: Affects last 35% of bars
+        private const float TREBLE_AMPLIFICATION = 1.6f;
+
         // Particle system for advanced effects
         private List<Particle> _particles = new List<Particle>();
 
@@ -76,19 +82,19 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             string outputPath = "output.mp4"
         )
         {
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AudioVisualizerEngine.Constructor - Initializing with Width: {width}, Height: {height}, FPS: {fps}, OutputPath: {outputPath}"
             );
             _width = width;
             _height = height;
             _fps = fps;
             _outputPath = outputPath;
-            Debug.WriteLine("AudioVisualizerEngine.Constructor - Initializing LibVLC.");
+            DebugWrite.Line("AudioVisualizerEngine.Constructor - Initializing LibVLC.");
             _libVLC = new LibVLC();
             _fftBuffer = new float[2048];
             _fftComplex = new NAudio.Dsp.Complex[2048];
             _audioSamples = new List<float>();
-            Debug.WriteLine("AudioVisualizerEngine.Constructor - Initialization complete.");
+            DebugWrite.Line("AudioVisualizerEngine.Constructor - Initialization complete.");
         }
 
         private VisualizationParameters _visualizationParameters;
@@ -104,7 +110,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             VisualizationParameters parameters = null
         )
         {
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AudioVisualizerEngine.CreateVisualization - Starting visualization for MP3: {mp3Path}, Mode: {mode}, ColorMode: {colorMode}"
             );
 
@@ -112,17 +118,17 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                 parameters ?? VisualizationParametersFactory.CreateDefault(mode);
 
             await LoadAudioData(mp3Path);
-            Debug.WriteLine("AudioVisualizerEngine.CreateVisualization - Audio data loaded.");
+            DebugWrite.Line("AudioVisualizerEngine.CreateVisualization - Audio data loaded.");
 
             var videoWriter = new VideoFileWriter();
             videoWriter.Open(_outputPath, _width, _height, _fps, VideoCodec.H264);
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AudioVisualizerEngine.CreateVisualization - Video writer opened for output: {_outputPath}"
             );
 
             var duration = GetAudioDuration(mp3Path);
             var totalFrames = (int)(duration * _fps);
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AudioVisualizerEngine.CreateVisualization - Audio duration: {duration:F1}s, Total frames: {totalFrames}"
             );
 
@@ -131,7 +137,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                 InitializeParticles(1000);
             }
 
-            Debug.WriteLine(
+            DebugWrite.Line(
                 "AudioVisualizerEngine.CreateVisualization - Starting frame generation..."
             );
             var startTime = DateTime.Now;
@@ -154,7 +160,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                             ? TimeSpan.FromSeconds((totalFrames - frame) / framesPerSecond)
                             : TimeSpan.Zero;
 
-                    Debug.WriteLine(
+                    DebugWrite.Line(
                         $"PROGRESS: Frame {frame + 1:N0}/{totalFrames:N0} ({progress:F1}%) | "
                             + $"Speed: {framesPerSecond:F1} fps | "
                             + $"Elapsed: {elapsed:mm\\:ss} | "
@@ -165,7 +171,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                 // Detailed logging every 10 seconds
                 if (frame % DETAILED_LOG_INTERVAL == 0 && frame > 0)
                 {
-                    Debug.WriteLine(
+                    DebugWrite.Line(
                         $"DETAIL: Bass={_smoothBass:F3}, Mid={_smoothMid:F3}, High={_smoothHigh:F3} | "
                             + $"Particles={_particles.Count} | "
                             + $"Memory: {GC.GetTotalMemory(false) / 1024 / 1024} MB"
@@ -174,31 +180,31 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             }
 
             var totalTime = DateTime.Now - startTime;
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"COMPLETE: Frame generation finished in {totalTime:mm\\:ss} | "
                     + $"Average: {totalFrames / totalTime.TotalSeconds:F1} fps"
             );
 
             videoWriter.Close();
             await MergeAudioVideo(mp3Path, _outputPath);
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AudioVisualizerEngine.CreateVisualization - Visualization complete: {_outputPath}"
             );
         }
 
         public async Task LoadAudioData(string mp3Path)
         {
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AudioVisualizerEngine.LoadAudioData - Starting to load audio data from: {mp3Path}"
             );
             await Task.Run(() =>
             {
-                Debug.WriteLine(
+                DebugWrite.Line(
                     $"AudioVisualizerEngine.LoadAudioData - Task started for reading MP3: {mp3Path}"
                 );
                 using (var reader = new Mp3FileReader(mp3Path))
                 {
-                    Debug.WriteLine(
+                    DebugWrite.Line(
                         $"AudioVisualizerEngine.LoadAudioData - Mp3FileReader opened. Sample rate: {reader.WaveFormat.SampleRate}, Channels: {reader.WaveFormat.Channels}"
                     );
                     var sampleProvider = reader.ToSampleProvider();
@@ -207,27 +213,27 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                     int samplesRead;
                     int totalSamplesRead = 0;
 
-                    Debug.WriteLine(
+                    DebugWrite.Line(
                         "AudioVisualizerEngine.LoadAudioData - Starting to read samples."
                     );
                     while ((samplesRead = sampleProvider.Read(buffer, 0, buffer.Length)) > 0)
                     {
                         samples.AddRange(buffer.Take(samplesRead));
                         totalSamplesRead += samplesRead;
-                        Debug.WriteLine(
+                        DebugWrite.Line(
                             $"AudioVisualizerEngine.LoadAudioData - Read {samplesRead} samples. Total samples in list: {samples.Count}"
                         );
                     }
-                    Debug.WriteLine(
+                    DebugWrite.Line(
                         $"AudioVisualizerEngine.LoadAudioData - Finished reading samples. Total samples read from file: {totalSamplesRead}"
                     );
                     _audioSamples = samples;
-                    Debug.WriteLine(
+                    DebugWrite.Line(
                         $"AudioVisualizerEngine.LoadAudioData - _audioSamples populated with {samples.Count} samples."
                     );
                 }
             });
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AudioVisualizerEngine.LoadAudioData - Finished loading audio data from: {mp3Path}. Total samples: {_audioSamples.Count}"
             );
         }
@@ -242,7 +248,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             // Only log errors or first/last frames
             if (frameIndex == 0 || frameIndex == totalFrames - 1)
             {
-                Debug.WriteLine(
+                DebugWrite.Line(
                     $"AudioVisualizerEngine.GenerateFrame - Frame {frameIndex} / {totalFrames}. Mode: {mode}"
                 );
             }
@@ -357,12 +363,12 @@ namespace YoutubeDownloader.Core.AudioVisualisation
 
         public void PerformFFT(float[] samples)
         {
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AudioVisualizerEngine.PerformFFT - Performing FFT on {samples.Length} samples."
             );
             if (samples.Length == 0)
             {
-                Debug.WriteLine(
+                DebugWrite.Line(
                     "AudioVisualizerEngine.PerformFFT - No samples to perform FFT on. Clearing _fftBuffer."
                 );
                 Array.Clear(_fftBuffer, 0, _fftBuffer.Length); // Clear previous FFT data if no new samples
@@ -370,7 +376,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             }
 
             int fftLength = _fftComplex.Length;
-            Debug.WriteLine($"AudioVisualizerEngine.PerformFFT - FFT Complex Length: {fftLength}");
+            DebugWrite.Line($"AudioVisualizerEngine.PerformFFT - FFT Complex Length: {fftLength}");
 
             for (int i = 0; i < fftLength; i++)
             {
@@ -386,12 +392,12 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                     _fftComplex[i].Y = 0;
                 }
             }
-            Debug.WriteLine(
+            DebugWrite.Line(
                 "AudioVisualizerEngine.PerformFFT - FFT buffer prepared with Hamming window and zero-padding if necessary."
             );
 
             FastFourierTransform.FFT(true, (int)Math.Log(fftLength, 2), _fftComplex);
-            Debug.WriteLine("AudioVisualizerEngine.PerformFFT - FFT executed.");
+            DebugWrite.Line("AudioVisualizerEngine.PerformFFT - FFT executed.");
 
             for (int i = 0; i < _fftBuffer.Length / 2; i++)
             {
@@ -399,18 +405,18 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                 float imaginary = _fftComplex[i].Y;
                 _fftBuffer[i] = (float)Math.Sqrt(real * real + imaginary * imaginary);
                 if (i < 5)
-                    Debug.WriteLine(
+                    DebugWrite.Line(
                         $"AudioVisualizerEngine.PerformFFT - _fftBuffer[{i}] Magnitude: {_fftBuffer[i]} (Real: {real}, Imaginary: {imaginary})"
                     );
             }
-            Debug.WriteLine(
+            DebugWrite.Line(
                 "AudioVisualizerEngine.PerformFFT - Magnitudes calculated and stored in _fftBuffer."
             );
         }
 
         public void UpdateFrequencyBands()
         {
-            Debug.WriteLine(
+            DebugWrite.Line(
                 "AudioVisualizerEngine.UpdateFrequencyBands - Updating frequency bands."
             );
             float bass = 0,
@@ -420,7 +426,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             int midEnd = _fftBuffer.Length / 4; // Example: 2048/4 = 512
             // Max useful index is _fftBuffer.Length / 2 - 1. For 2048, it's 1023.
 
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AudioVisualizerEngine.UpdateFrequencyBands - bassEnd index: {bassEnd}, midEnd index: {midEnd}, fftBuffer half length: {_fftBuffer.Length / 2}"
             );
 
@@ -431,7 +437,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             for (int i = midEnd; i < _fftBuffer.Length / 2; i++)
                 high += _fftBuffer[i];
 
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AudioVisualizerEngine.UpdateFrequencyBands - Raw sums: Bass={bass}, Mid={mid}, High={high}"
             );
 
@@ -440,7 +446,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             float highAvg =
                 (_fftBuffer.Length / 2 - midEnd > 0) ? high / (_fftBuffer.Length / 2 - midEnd) : 0;
 
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AudioVisualizerEngine.UpdateFrequencyBands - Raw averages: BassAvg={bassAvg}, MidAvg={midAvg}, HighAvg={highAvg}"
             );
 
@@ -448,28 +454,28 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             _smoothMid = Lerp(_smoothMid, midAvg, 0.3f);
             _smoothHigh = Lerp(_smoothHigh, highAvg, 0.3f);
 
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AudioVisualizerEngine.UpdateFrequencyBands - Smoothed values: _smoothBass={_smoothBass}, _smoothMid={_smoothMid}, _smoothHigh={_smoothHigh}"
             );
         }
 
         private void UpdateHistory(float[] samples)
         {
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AudioVisualizerEngine.UpdateHistory - Updating history with {samples.Length} samples."
             );
             _historyBuffer.Enqueue((float[])samples.Clone()); // Enqueue a copy
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AudioVisualizerEngine.UpdateHistory - Enqueued. History buffer size: {_historyBuffer.Count}"
             );
             if (_historyBuffer.Count > _historySize)
             {
                 _historyBuffer.Dequeue();
-                Debug.WriteLine(
+                DebugWrite.Line(
                     $"AudioVisualizerEngine.UpdateHistory - Dequeued. History buffer size: {_historyBuffer.Count}"
                 );
             }
-            Debug.WriteLine("AudioVisualizerEngine.UpdateHistory - History update complete.");
+            DebugWrite.Line("AudioVisualizerEngine.UpdateHistory - History update complete.");
         }
 
         public Color GetColor(ColorMode mode, float intensity, float position = 0)
@@ -534,12 +540,12 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             BasicWaveformParameters parameters
         )
         {
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AudioVisualizerEngine.DrawBasicWaveform - Drawing with {samples.Length} samples."
             );
             if (samples.Length == 0)
             {
-                Debug.WriteLine("AudioVisualizerEngine.DrawBasicWaveform - No samples to draw.");
+                DebugWrite.Line("AudioVisualizerEngine.DrawBasicWaveform - No samples to draw.");
                 return;
             }
 
@@ -561,7 +567,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                     points.Add(new PointF(x, points.Last().Y));
                 }
             }
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AudioVisualizerEngine.DrawBasicWaveform - Generated {points.Count} points for waveform. Step was {step}"
             );
 
@@ -602,13 +608,13 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                         g.DrawLine(pen, points[i], points[i + 1]);
                     }
                 }
-                Debug.WriteLine(
+                DebugWrite.Line(
                     $"AudioVisualizerEngine.DrawBasicWaveform - Drawn {points.Count - 1} line segments."
                 );
             }
             else
             {
-                Debug.WriteLine(
+                DebugWrite.Line(
                     "AudioVisualizerEngine.DrawBasicWaveform - Not enough points to draw lines."
                 );
             }
@@ -621,12 +627,12 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             CircularWaveParameters parameters
         )
         {
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AudioVisualizerEngine.DrawCircularWave - Drawing with {samples.Length} samples."
             );
             if (samples.Length == 0)
             {
-                Debug.WriteLine("AudioVisualizerEngine.DrawCircularWave - No samples to draw.");
+                DebugWrite.Line("AudioVisualizerEngine.DrawCircularWave - No samples to draw.");
                 return;
             }
 
@@ -646,7 +652,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                     try
                     {
                         centerImage = Image.FromFile(parameters.CircleCenterFilePath);
-                        Debug.WriteLine(
+                        DebugWrite.Line(
                             $"AudioVisualizerEngine.DrawCircularWave - Loaded center image: {parameters.CircleCenterFilePath}"
                         );
 
@@ -662,20 +668,20 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                             centerImage.Width,
                             centerImage.Height
                         );
-                        Debug.WriteLine(
+                        DebugWrite.Line(
                             $"AudioVisualizerEngine.DrawCircularWave - Drew center image at ({imageX},{imageY}) with size ({centerImage.Width},{centerImage.Height})."
                         );
 
                         // Set baseRadius for the wave based on the image dimensions.
                         // The wave's base will align with a circle inscribed by the smaller dimension of the image.
                         baseRadius = Math.Min(centerImage.Width, centerImage.Height) / 2.0f;
-                        Debug.WriteLine(
+                        DebugWrite.Line(
                             $"AudioVisualizerEngine.DrawCircularWave - BaseRadius set from image: {baseRadius}"
                         );
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine(
+                        DebugWrite.Line(
                             $"AudioVisualizerEngine.DrawCircularWave - Error loading or drawing center image '{parameters.CircleCenterFilePath}': {ex.Message}"
                         );
                         // Safely dispose if partially loaded or error occurred after loading
@@ -684,7 +690,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
 
                         // Fallback to original baseRadius calculation if image loading/drawing fails
                         baseRadius = Math.Min(_width, _height) * parameters.BaseRadius;
-                        Debug.WriteLine(
+                        DebugWrite.Line(
                             $"AudioVisualizerEngine.DrawCircularWave - Fallback BaseRadius due to image error: {baseRadius}"
                         );
                     }
@@ -695,26 +701,26 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                     baseRadius = Math.Min(_width, _height) * parameters.BaseRadius;
                     if (string.IsNullOrEmpty(parameters.CircleCenterFilePath))
                     {
-                        Debug.WriteLine(
+                        DebugWrite.Line(
                             $"AudioVisualizerEngine.DrawCircularWave - No center image path provided. Using default BaseRadius: {baseRadius}"
                         );
                     }
                     else
                     {
-                        Debug.WriteLine(
+                        DebugWrite.Line(
                             $"AudioVisualizerEngine.DrawCircularWave - Center image file not found: {parameters.CircleCenterFilePath}. Using default BaseRadius: {baseRadius}"
                         );
                     }
                 }
 
                 // Log the final center and baseRadius being used for the wave
-                Debug.WriteLine(
+                DebugWrite.Line(
                     $"AudioVisualizerEngine.DrawCircularWave - Effective - Center: ({centerX},{centerY}), BaseRadius: {baseRadius}"
                 );
 
                 var points = new List<PointF>();
                 int sampleCount = Math.Min(samples.Length, parameters.SamplePoints);
-                Debug.WriteLine(
+                DebugWrite.Line(
                     $"AudioVisualizerEngine.DrawCircularWave - Will use {sampleCount} samples for the circle."
                 );
 
@@ -743,11 +749,11 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                     float y = centerY + (float)Math.Sin(angle) * radius;
                     points.Add(new PointF(x, y));
                     if (i < 5) // Log first few points for debugging
-                        Debug.WriteLine(
+                        DebugWrite.Line(
                             $"AudioVisualizerEngine.DrawCircularWave - Point {i}: Angle={angle:F2}, SampleVal={waveAmplitudeEffect:F2}, Radius={radius:F2}, Pos=({x:F2},{y:F2})"
                         );
                 }
-                Debug.WriteLine(
+                DebugWrite.Line(
                     $"AudioVisualizerEngine.DrawCircularWave - Generated {points.Count} points for circular wave."
                 );
 
@@ -859,13 +865,13 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                             }
                         }
                     }
-                    Debug.WriteLine(
+                    DebugWrite.Line(
                         $"AudioVisualizerEngine.DrawCircularWave - Drawn {points.Count} line segments for the circle."
                     );
                 }
                 else
                 {
-                    Debug.WriteLine(
+                    DebugWrite.Line(
                         "AudioVisualizerEngine.DrawCircularWave - Not enough points to draw lines."
                     );
                 }
@@ -884,12 +890,12 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             SphericalPulseParameters parameters
         )
         {
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AudioVisualizerEngine.DrawSphericalPulse - Drawing with {samples.Length} samples."
             );
             if (samples.Length == 0 && _historyBuffer.Count == 0)
             {
-                Debug.WriteLine(
+                DebugWrite.Line(
                     "AudioVisualizerEngine.DrawSphericalPulse - No samples and no history to draw."
                 );
                 return;
@@ -900,7 +906,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
 
             int circleCount = Math.Min(_historyBuffer.Count, parameters.MaxCircles);
             var histories = _historyBuffer.ToArray();
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AudioVisualizerEngine.DrawSphericalPulse - Center: ({centerX},{centerY}), Drawing {circleCount} historical circles."
             );
 
@@ -910,7 +916,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                 var historySamples = histories[(histories.Length - 1) - h];
                 if (historySamples == null || historySamples.Length == 0)
                 {
-                    Debug.WriteLine(
+                    DebugWrite.Line(
                         $"AudioVisualizerEngine.DrawSphericalPulse - History samples at index {h} is null or empty. Skipping."
                     );
                     continue;
@@ -920,7 +926,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                 int samplesToAverage = Math.Min(historySamples.Length, 100);
                 if (samplesToAverage == 0)
                 {
-                    Debug.WriteLine(
+                    DebugWrite.Line(
                         $"AudioVisualizerEngine.DrawSphericalPulse - No history samples to average for circle {h}. Skipping."
                     );
                     continue;
@@ -937,7 +943,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                     + avgAmplitude * parameters.AmplitudeMultiplier
                     + h * parameters.RadiusGrowthRate;
                 var color = GetColor(colorMode, alpha * 0.7f, avgAmplitude);
-                Debug.WriteLine(
+                DebugWrite.Line(
                     $"AudioVisualizerEngine.DrawSphericalPulse - Circle {h}: Alpha={alpha}, AvgAmplitude={avgAmplitude}, Radius={radius}, Color={color}"
                 );
 
@@ -951,7 +957,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                     g.DrawEllipse(pen, centerX - radius, centerY - radius, radius * 2, radius * 2);
                 }
             }
-            Debug.WriteLine("AudioVisualizerEngine.DrawSphericalPulse - Finished drawing pulses.");
+            DebugWrite.Line("AudioVisualizerEngine.DrawSphericalPulse - Finished drawing pulses.");
         }
 
         private void DrawSpectrumBars(
@@ -960,39 +966,131 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             SpectrumBarsParameters parameters
         )
         {
-            Debug.WriteLine("AudioVisualizerEngine.DrawSpectrumBars - Drawing spectrum bars.");
+            DebugWrite.Line("AudioVisualizerEngine.DrawSpectrumBars - Drawing spectrum bars.");
+
+            // --- Variables needed for frequency mapping ---
+            // Assuming _sampleRate is a field in your AudioVisualizerEngine, initialized from Mp3FileReader.WaveFormat.SampleRate
+            // If not, you'll need to pass it or use a default. For robust results, use the actual sample rate.
+            float sampleRate = 44100; // DEFAULT - REPLACE WITH ACTUAL if available: this._sampleRate or similar
+            // You can get it in LoadAudioData: this._sampleRate = reader.WaveFormat.SampleRate;
+            // Or, if this function is in a different class, it might need to be passed in.
+            // For now, putting a placeholder that you can update.
+
+            int fftActualSize = _fftBuffer.Length / 2; // Number of useful magnitude bins
+            if (fftActualSize <= 0 || parameters.BarCount <= 0)
+            {
+                DebugWrite.Line(
+                    "AudioVisualizerEngine.DrawSpectrumBars - Invalid FFT buffer size or BarCount. Aborting."
+                );
+                return;
+            }
+            float hzPerBin = (sampleRate / 2.0f) / fftActualSize; // Frequency range per FFT bin
+
+            float minDisplayFreq = 20.0f; // Minimum frequency to display
+            float maxDisplayFreq = Math.Min(sampleRate / 2.0f, 20000.0f); // Max frequency to display (up to Nyquist or 20kHz)
+            // --- End Variables ---
+
 
             float totalBarWidth = _width - (parameters.BarCount - 1) * parameters.BarSpacing;
             float barWidth = totalBarWidth / parameters.BarCount;
 
-            Debug.WriteLine(
-                $"AudioVisualizerEngine.DrawSpectrumBars - BarCount: {parameters.BarCount}, BarWidth: {barWidth}"
+            DebugWrite.Line(
+                $"AudioVisualizerEngine.DrawSpectrumBars - BarCount: {parameters.BarCount}, BarWidth: {barWidth}, FFT Bins: {fftActualSize}, Hz/Bin: {hzPerBin:F2}"
             );
 
             for (int i = 0; i < parameters.BarCount; i++)
             {
-                int fftIndex;
+                float barMagnitude;
+
                 if (parameters.LogarithmicScale)
                 {
-                    // Logarithmic scale for better frequency distribution
-                    float logScale = (float)Math.Log10(1 + i * 9.0 / parameters.BarCount);
-                    fftIndex = (int)(logScale * (_fftBuffer.Length / 2 - 1));
+                    // Calculate the lower and upper frequency for this bar on a log scale
+                    float bandLowFreq =
+                        minDisplayFreq
+                        * (float)
+                            Math.Pow(
+                                maxDisplayFreq / minDisplayFreq,
+                                (double)i / parameters.BarCount
+                            );
+                    float bandHighFreq =
+                        minDisplayFreq
+                        * (float)
+                            Math.Pow(
+                                maxDisplayFreq / minDisplayFreq,
+                                (double)(i + 1) / parameters.BarCount
+                            );
+
+                    // Convert frequencies to FFT bin indices
+                    int binLow = (int)(bandLowFreq / hzPerBin);
+                    int binHigh = (int)(bandHighFreq / hzPerBin);
+
+                    // Ensure indices are within bounds and binHigh is at least binLow
+                    binLow = Math.Max(0, Math.Min(binLow, fftActualSize - 1));
+                    binHigh = Math.Max(binLow, Math.Min(binHigh, fftActualSize - 1));
+
+                    // Take the maximum magnitude within this frequency band for the bar
+                    float maxMagnitudeInBand = 0f;
+                    // Iterate from binLow up to (but not necessarily including) binHigh,
+                    // unless they are the same, in which case, take that one bin.
+                    // The loop should be k <= binHigh if binHigh is inclusive upper bound of the band's bins.
+                    // If binHigh is the start of the *next* band, then k < binHigh.
+                    // Given bandHighFreq is (i+1)/BarCount, it's the end of the current band.
+                    for (int k = binLow; k <= binHigh; k++)
+                    {
+                        if (k < fftActualSize) // Defensive check
+                        {
+                            if (_fftBuffer[k] > maxMagnitudeInBand)
+                            {
+                                maxMagnitudeInBand = _fftBuffer[k];
+                            }
+                        }
+                    }
+                    barMagnitude = maxMagnitudeInBand;
+
+                    // Debug for first few and last few bars
+                    if (i < 3 || i >= parameters.BarCount - 3)
+                    {
+                        DebugWrite.Line(
+                            $"Log Bar {i}: FreqRange [{bandLowFreq:F1}-{bandHighFreq:F1} Hz] -> Bins [{binLow}-{binHigh}] -> Mag={barMagnitude:F4}"
+                        );
+                    }
                 }
-                else
+                else // Linear Scale
                 {
-                    // Linear scale
-                    fftIndex = Math.Min(
-                        (i * (_fftBuffer.Length / 2)) / parameters.BarCount,
-                        (_fftBuffer.Length / 2) - 1
-                    );
+                    // Each bar takes an equal slice of FFT bins
+                    int startBin = (i * fftActualSize) / parameters.BarCount;
+                    int endBin = ((i + 1) * fftActualSize) / parameters.BarCount - 1;
+
+                    startBin = Math.Max(0, Math.Min(startBin, fftActualSize - 1));
+                    endBin = Math.Max(startBin, Math.Min(endBin, fftActualSize - 1));
+
+                    float maxMagnitudeInBand = 0f;
+                    for (int k = startBin; k <= endBin; k++)
+                    {
+                        if (k < fftActualSize) // Defensive check
+                        {
+                            if (_fftBuffer[k] > maxMagnitudeInBand)
+                            {
+                                maxMagnitudeInBand = _fftBuffer[k];
+                            }
+                        }
+                    }
+                    barMagnitude = maxMagnitudeInBand;
+
+                    // Debug for first few and last few bars
+                    if (i < 3 || i >= parameters.BarCount - 3)
+                    {
+                        float bandLowFreq = startBin * hzPerBin;
+                        float bandHighFreq = (endBin + 1) * hzPerBin;
+                        DebugWrite.Line(
+                            $"Lin Bar {i}: FreqRange [{bandLowFreq:F1}-{bandHighFreq:F1} Hz] -> Bins [{startBin}-{endBin}] -> Mag={barMagnitude:F4}"
+                        );
+                    }
                 }
 
-                if (fftIndex < 0)
-                    fftIndex = 0;
-
-                float magnitude = _fftBuffer[fftIndex] * parameters.AmplitudeMultiplier;
+                float finalMagnitude = barMagnitude * parameters.AmplitudeMultiplier; // Apply global multiplier
                 float barHeight = Math.Min(
-                    magnitude * _height * 0.75f,
+                    finalMagnitude * _height * 0.75f, // Some arbitrary scaling based on screen height
                     _height * parameters.MaxBarHeight
                 );
                 barHeight = Math.Max(0, barHeight);
@@ -1002,26 +1100,19 @@ namespace YoutubeDownloader.Core.AudioVisualisation
 
                 var color = GetColor(
                     colorMode,
-                    Math.Min(magnitude, 1f),
+                    Math.Min(finalMagnitude, 1f), // Intensity for color often capped at 1.0
                     (float)i / parameters.BarCount
                 );
-                if (i == 0 || i == parameters.BarCount - 1)
-                    Debug.WriteLine(
-                        $"AudioVisualizerEngine.DrawSpectrumBars - Bar {i}: FFTIndex={fftIndex}, Magnitude={_fftBuffer[fftIndex]}, CalcMag={magnitude}, BarHeight={barHeight}, X={x}, Y={y}, Color={color}"
-                    );
 
                 using (var brush = new SolidBrush(color))
                 {
                     g.FillRectangle(brush, x, y, barWidth, barHeight);
-
-                    // Mirror bottom bars if enabled
                     if (parameters.MirrorBars)
                     {
                         g.FillRectangle(brush, x, _height / 2, barWidth, barHeight);
                     }
                 }
 
-                // Add glow effect if enabled
                 if (parameters.EnableGlow)
                 {
                     using (
@@ -1031,7 +1122,6 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                     )
                     {
                         g.FillRectangle(glowBrush, x - 2, y - 5, barWidth + 4, barHeight + 10);
-
                         if (parameters.MirrorBars)
                         {
                             g.FillRectangle(
@@ -1045,7 +1135,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                     }
                 }
             }
-            Debug.WriteLine(
+            DebugWrite.Line(
                 "AudioVisualizerEngine.DrawSpectrumBars - Finished drawing spectrum bars."
             );
         }
@@ -1056,13 +1146,13 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             CircularSpectrumBarsParameters parameters
         )
         {
-            Debug.WriteLine(
+            DebugWrite.Line(
                 "AudioVisualizerEngine.DrawCircularSpectrumBars - Drawing enhanced circular spectrum bars."
             );
 
             if (_fftBuffer == null || _fftBuffer.Length < 2)
             {
-                Debug.WriteLine(
+                DebugWrite.Line(
                     "AudioVisualizerEngine.DrawCircularSpectrumBars - FFT buffer is null or too small."
                 );
                 return;
@@ -1123,13 +1213,13 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                         imageRadius = Math.Min(imageWidth, imageHeight) / 2.0f;
                         baseRadius = imageRadius * 1.15f; // Better spacing ratio
 
-                        Debug.WriteLine(
+                        DebugWrite.Line(
                             $"Enhanced image preparation - ImageRadius: {imageRadius}, BaseRadius: {baseRadius}"
                         );
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine($"Error loading image: {ex.Message}");
+                        DebugWrite.Line($"Error loading image: {ex.Message}");
                         centerImage?.Dispose();
                         centerImage = null;
                         baseRadius = Math.Min(_width, _height) * parameters.BaseRadiusPercentage;
@@ -1205,7 +1295,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                 g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.Default;
             }
 
-            Debug.WriteLine(
+            DebugWrite.Line(
                 "AudioVisualizerEngine.DrawCircularSpectrumBars - Enhanced rendering complete."
             );
         }
@@ -1221,7 +1311,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             float[] magnitudes
         )
         {
-            Debug.WriteLine(
+            DebugWrite.Line(
                 "AudioVisualizerEngine.DrawContinuousWaveSpectrum - Drawing continuous wave spectrum."
             );
 
@@ -1230,7 +1320,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             var innerPoints = new List<PointF>();
 
             // Add rotation animation
-            double rotationOffset = _frameCount * 0.002;
+            double rotationOffset = 0;
 
             // Generate smooth wave points
             for (int i = 0; i <= parameters.BarCount; i++) // <= to close the loop
@@ -1583,59 +1673,174 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             );
         }
 
+        // Add this field to the class where ProcessFFTData resides:
+        private float[] _previousSmoothedMagnitudes;
+
+        // MathHelper class assumed to be available (with Lerp)
+        // VisualizationConstants class assumed to be available
+
         private float[] ProcessFFTData(CircularSpectrumBarsParameters parameters)
         {
-            var magnitudes = new float[parameters.BarCount];
-            var smoothedMagnitudes = new float[parameters.BarCount];
+            if (_fftBuffer == null || _fftBuffer.Length == 0 || parameters.BarCount <= 0)
+            {
+                // Return an array of zeros if FFT buffer is invalid or no bars to process
+                if (
+                    _previousSmoothedMagnitudes == null
+                    || _previousSmoothedMagnitudes.Length != parameters.BarCount
+                )
+                {
+                    _previousSmoothedMagnitudes = new float[
+                        parameters.BarCount > 0 ? parameters.BarCount : 1
+                    ];
+                }
+                Array.Clear(_previousSmoothedMagnitudes, 0, _previousSmoothedMagnitudes.Length);
+                return _previousSmoothedMagnitudes;
+            }
 
-            // Enhanced frequency distribution with better bass/mid/treble representation
+            // Initialize or resize _previousSmoothedMagnitudes if necessary
+            if (
+                _previousSmoothedMagnitudes == null
+                || _previousSmoothedMagnitudes.Length != parameters.BarCount
+            )
+            {
+                _previousSmoothedMagnitudes = new float[parameters.BarCount];
+                // Optionally initialize with zeros or a small value
+            }
+
+            var currentMagnitudes = new float[parameters.BarCount];
+            int _fftLength = _fftBuffer.Length / 2; // Usable part of the FFT spectrum (magnitudes)
+
+            // --- Step 1: Map Bars to FFT Bins and Get Raw Magnitudes ---
             for (int i = 0; i < parameters.BarCount; i++)
             {
                 int fftIndex;
-
                 if (parameters.LogarithmicScale)
                 {
-                    // Improved logarithmic scaling with better frequency distribution
-                    double logBase = Math.Pow((_fftBuffer.Length / 2.0), 1.0 / parameters.BarCount);
-                    fftIndex = (int)Math.Min(Math.Pow(logBase, i + 1), _fftBuffer.Length / 2 - 1);
+                    if (_fftLength <= 1)
+                    { // Handle edge case where _fftLength is too small
+                        fftIndex = 0;
+                    }
+                    else
+                    {
+                        // Ensure logBase is > 1. If _fftLength is small, Pow can result in values close to 1.
+                        double logBase = Math.Max(
+                            1.000001,
+                            Math.Pow(_fftLength, 1.0 / parameters.BarCount)
+                        );
+                        // (i + 1) in exponent to map bar 0 to logBase^1, bar_max to logBase^BarCount (~_fftLength)
+                        // Subtract 1 to shift from [logBase^1, logBase^BarCount] range to [0, _fftLength-1] like indices
+                        fftIndex = (int)(Math.Pow(logBase, i + 1.0) - logBase); // Adjusted for better distribution
+                        // A common alternative is to define bands first, then map. This is a direct log mapping.
+                    }
                 }
                 else
                 {
-                    fftIndex = (int)((float)i / parameters.BarCount * (_fftBuffer.Length / 2 - 1));
+                    fftIndex = (int)(((float)i / parameters.BarCount) * _fftLength);
                 }
 
-                fftIndex = Math.Max(0, Math.Min(fftIndex, _fftBuffer.Length / 2 - 1));
-
-                // Enhanced magnitude calculation with frequency-dependent amplification
-                float rawMagnitude = _fftBuffer[fftIndex];
-
-                // Apply frequency-dependent amplification (boost bass and presence)
-                float frequencyRatio = (float)i / parameters.BarCount;
-                float amplificationCurve = 1.0f;
-
-                if (frequencyRatio < 0.1f) // Bass boost
-                    amplificationCurve = 2.0f - frequencyRatio * 10f;
-                else if (frequencyRatio > 0.7f) // Treble presence
-                    amplificationCurve = 1.0f + (frequencyRatio - 0.7f) * 1.5f;
-
-                magnitudes[i] = rawMagnitude * parameters.AmplitudeMultiplier * amplificationCurve;
+                fftIndex = Math.Max(0, Math.Min(fftIndex, _fftLength - 1)); // Clamp index
+                currentMagnitudes[i] = _fftBuffer[fftIndex];
             }
 
-            // Apply temporal smoothing to reduce jitter
+            // --- Step 2: Apply Frequency-Dependent Amplification & Global Multiplier ---
             for (int i = 0; i < parameters.BarCount; i++)
             {
-                smoothedMagnitudes[i] = magnitudes[i];
+                float frequencyRatio = (float)i / (parameters.BarCount - 1); // Normalized position (0.0 to 1.0)
+                // (BarCount - 1) ensures the last bar gets ratio 1.0
+                if (parameters.BarCount <= 1)
+                    frequencyRatio = 0.5f; // Avoid division by zero for single bar
 
-                // Smooth with neighboring bars for more organic look
-                if (i > 0 && i < parameters.BarCount - 1)
+                float amplification = 1.0f;
+
+                if (frequencyRatio < BASS_BOOST_THRESHOLD)
                 {
-                    smoothedMagnitudes[i] = (
-                        magnitudes[i - 1] * 0.2f + magnitudes[i] * 0.6f + magnitudes[i + 1] * 0.2f
-                    );
+                    // Consistent boost across the defined bass band
+                    amplification = BASS_AMPLIFICATION;
                 }
+                else if (frequencyRatio > TREBLE_BOOST_THRESHOLD)
+                {
+                    // Scale treble boost from 1.0 up to TREBLE_AMPLIFICATION across the treble band
+                    float trebleRange = 1.0f - TREBLE_BOOST_THRESHOLD;
+                    if (trebleRange <= 0)
+                        trebleRange = 0.001f; // Avoid division by zero
+                    float progressionInTreble =
+                        (frequencyRatio - TREBLE_BOOST_THRESHOLD) / trebleRange;
+                    amplification = 1.0f + (progressionInTreble * (TREBLE_AMPLIFICATION - 1.0f));
+                }
+
+                amplification = Math.Max(0.0f, amplification); // Ensure no negative amplification
+
+                currentMagnitudes[i] *= parameters.AmplitudeMultiplier * amplification;
             }
 
-            return smoothedMagnitudes;
+            // --- Step 3: Apply Spatial Smoothing (across neighboring bars) ---
+            var spatiallySmoothedMagnitudes = new float[parameters.BarCount];
+            if (parameters.EnableSpatialSmoothing && parameters.BarCount > 0)
+            {
+                if (parameters.BarCount <= 2) // Handle cases with 1 or 2 bars (no full neighborhood)
+                {
+                    Array.Copy(currentMagnitudes, spatiallySmoothedMagnitudes, parameters.BarCount);
+                }
+                else // More than 2 bars, apply smoothing
+                {
+                    // Handle edges (can mirror, clamp, or use simpler smoothing)
+                    spatiallySmoothedMagnitudes[0] =
+                        currentMagnitudes[0] * parameters.SpatialSmoothFactorMid
+                        + currentMagnitudes[1] * parameters.SpatialSmoothFactorHigh; // Simplified for edge
+                    float sumFactorsEdge =
+                        parameters.SpatialSmoothFactorMid + parameters.SpatialSmoothFactorHigh;
+                    if (sumFactorsEdge > 0)
+                        spatiallySmoothedMagnitudes[0] /= sumFactorsEdge; // Normalize if factors don't sum to 1
+
+                    spatiallySmoothedMagnitudes[parameters.BarCount - 1] =
+                        currentMagnitudes[parameters.BarCount - 1]
+                            * parameters.SpatialSmoothFactorMid
+                        + currentMagnitudes[parameters.BarCount - 2]
+                            * parameters.SpatialSmoothFactorLow;
+                    sumFactorsEdge =
+                        parameters.SpatialSmoothFactorMid + parameters.SpatialSmoothFactorLow;
+                    if (sumFactorsEdge > 0)
+                        spatiallySmoothedMagnitudes[parameters.BarCount - 1] /= sumFactorsEdge;
+
+                    for (int i = 1; i < parameters.BarCount - 1; i++)
+                    {
+                        spatiallySmoothedMagnitudes[i] =
+                            currentMagnitudes[i - 1] * parameters.SpatialSmoothFactorLow
+                            + currentMagnitudes[i] * parameters.SpatialSmoothFactorMid
+                            + currentMagnitudes[i + 1] * parameters.SpatialSmoothFactorHigh;
+                        // Optional: if factors don't sum to 1, normalize:
+                        // float sumFactors = parameters.SpatialSmoothFactorLow + parameters.SpatialSmoothFactorMid + parameters.SpatialSmoothFactorHigh;
+                        // if (sumFactors > 0) spatiallySmoothedMagnitudes[i] /= sumFactors;
+                    }
+                }
+            }
+            else
+            {
+                Array.Copy(currentMagnitudes, spatiallySmoothedMagnitudes, parameters.BarCount);
+            }
+
+            // --- Step 4: Apply Temporal Smoothing (across frames) ---
+            if (parameters.EnableTemporalSmoothing)
+            {
+                for (int i = 0; i < parameters.BarCount; i++)
+                {
+                    // Use MathHelper.Lerp if available, otherwise standard lerp:
+                    // _previousSmoothedMagnitudes[i] = firstFloat * (1 - by) + secondFloat * by;
+                    _previousSmoothedMagnitudes[i] =
+                        _previousSmoothedMagnitudes[i] * (1 - parameters.TemporalSmoothFactor)
+                        + spatiallySmoothedMagnitudes[i] * parameters.TemporalSmoothFactor;
+                }
+            }
+            else
+            {
+                Array.Copy(
+                    spatiallySmoothedMagnitudes,
+                    _previousSmoothedMagnitudes,
+                    parameters.BarCount
+                );
+            }
+
+            return _previousSmoothedMagnitudes;
         }
 
         private void DrawSpectrumBarsWithEffects(
@@ -2062,12 +2267,12 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             ParticleFlowParameters parameters
         )
         {
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AudioVisualizerEngine.DrawParticleFlow - Drawing with {samples.Length} samples. Particle count: {_particles.Count}"
             );
             if (samples.Length == 0)
             {
-                Debug.WriteLine(
+                DebugWrite.Line(
                     "AudioVisualizerEngine.DrawParticleFlow - No samples for particle flow logic this frame."
                 );
             }
@@ -2080,7 +2285,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                     .Select(Math.Abs)
                     .Average();
             }
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AudioVisualizerEngine.DrawParticleFlow - AvgAmplitude: {avgAmplitude}"
             );
 
@@ -2092,7 +2297,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             {
                 int particlesToSpawn = (int)(avgAmplitude * parameters.SpawnRate);
                 particlesToSpawn = Math.Min(particlesToSpawn, parameters.SpawnRate);
-                Debug.WriteLine(
+                DebugWrite.Line(
                     $"AudioVisualizerEngine.DrawParticleFlow - Spawning {particlesToSpawn} new particles."
                 );
                 for (int i = 0; i < particlesToSpawn; i++)
@@ -2117,13 +2322,13 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                     };
                     _particles.Add(newParticle);
                     if (i == 0)
-                        Debug.WriteLine(
+                        DebugWrite.Line(
                             $"AudioVisualizerEngine.DrawParticleFlow - New particle: X={newParticle.X}, Y={newParticle.Y}, VX={newParticle.VX}, VY={newParticle.VY}"
                         );
                 }
             }
 
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AudioVisualizerEngine.DrawParticleFlow - Updating and drawing {_particles.Count} particles."
             );
             for (int i = _particles.Count - 1; i >= 0; i--)
@@ -2167,7 +2372,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                     g.FillEllipse(brush, p.X - p.Size / 2, p.Y - p.Size / 2, p.Size, p.Size);
                 }
             }
-            Debug.WriteLine(
+            DebugWrite.Line(
                 "AudioVisualizerEngine.DrawParticleFlow - Finished particle flow frame."
             );
         }
@@ -2179,23 +2384,23 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             KaleidoscopeWaveParameters parameters
         )
         {
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AudioVisualizerEngine.DrawKaleidoscopeWave - Drawing with {samples.Length} samples."
             );
             if (samples.Length == 0)
             {
-                Debug.WriteLine("AudioVisualizerEngine.DrawKaleidoscopeWave - No samples to draw.");
+                DebugWrite.Line("AudioVisualizerEngine.DrawKaleidoscopeWave - No samples to draw.");
                 return;
             }
 
             float centerX = _width * parameters.CenterX;
             float centerY = _height * parameters.CenterY;
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AudioVisualizerEngine.DrawKaleidoscopeWave - Center: ({centerX},{centerY}), Segments: {parameters.Segments}"
             );
 
             g.TranslateTransform(centerX, centerY);
-            Debug.WriteLine("AudioVisualizerEngine.DrawKaleidoscopeWave - Translated to center.");
+            DebugWrite.Line("AudioVisualizerEngine.DrawKaleidoscopeWave - Translated to center.");
 
             for (int seg = 0; seg < parameters.Segments; seg++)
             {
@@ -2223,7 +2428,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                         points.Add(points.Last());
                     }
                 }
-                Debug.WriteLine(
+                DebugWrite.Line(
                     $"AudioVisualizerEngine.DrawKaleidoscopeWave - Segment {seg}: Generated {points.Count} points. SampleStep: {sampleStep}"
                 );
 
@@ -2248,7 +2453,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             }
 
             g.ResetTransform();
-            Debug.WriteLine(
+            DebugWrite.Line(
                 "AudioVisualizerEngine.DrawKaleidoscopeWave - Transform reset. Drawing complete."
             );
         }
@@ -2260,19 +2465,19 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             DNAHelixParameters parameters
         )
         {
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AudioVisualizerEngine.DrawDNAHelix - Drawing with {samples.Length} samples."
             );
             if (samples.Length == 0)
             {
-                Debug.WriteLine("AudioVisualizerEngine.DrawDNAHelix - No samples to draw.");
+                DebugWrite.Line("AudioVisualizerEngine.DrawDNAHelix - No samples to draw.");
                 return;
             }
 
             float centerX = _width * parameters.CenterX;
             int numPointsInHelix = Math.Min(samples.Length, parameters.HelixPoints);
             float yStep = (float)_height / numPointsInHelix;
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AudioVisualizerEngine.DrawDNAHelix - CenterX: {centerX}, Points in Helix: {numPointsInHelix}, Y-Step: {yStep}"
             );
 
@@ -2294,7 +2499,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                 var color2 = GetColor(colorMode, intensity, (phase + 0.5f) % 1f);
 
                 if (i < 2)
-                    Debug.WriteLine(
+                    DebugWrite.Line(
                         $"AudioVisualizerEngine.DrawDNAHelix - Point {i}: Y={y}, Phase={phase}, SampleVal={samples[sampleIndex]}, X1={x1}, X2={x2}"
                     );
 
@@ -2334,7 +2539,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                     }
                 }
             }
-            Debug.WriteLine("AudioVisualizerEngine.DrawDNAHelix - Finished drawing helix.");
+            DebugWrite.Line("AudioVisualizerEngine.DrawDNAHelix - Finished drawing helix.");
         }
 
         private void DrawAurora(
@@ -2344,12 +2549,12 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             AuroraParameters parameters
         )
         {
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AudioVisualizerEngine.DrawAurora - Drawing with {samples.Length} samples."
             );
             if (samples.Length == 0)
             {
-                Debug.WriteLine("AudioVisualizerEngine.DrawAurora - No samples to draw.");
+                DebugWrite.Line("AudioVisualizerEngine.DrawAurora - No samples to draw.");
                 return;
             }
 
@@ -2357,7 +2562,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                 parameters.MinBands
                 + (int)(_smoothMid * (parameters.MaxBands - parameters.MinBands));
             bandCount = Math.Max(parameters.MinBands, Math.Min(bandCount, parameters.MaxBands));
-            Debug.WriteLine($"AudioVisualizerEngine.DrawAurora - BandCount: {bandCount}");
+            DebugWrite.Line($"AudioVisualizerEngine.DrawAurora - BandCount: {bandCount}");
 
             for (int band = 0; band < bandCount; band++)
             {
@@ -2402,7 +2607,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                     points.Add(new PointF(x, y));
                 }
                 if (band == 0 && points.Count > 0)
-                    Debug.WriteLine(
+                    DebugWrite.Line(
                         $"AudioVisualizerEngine.DrawAurora - Band {band}: Generated {points.Count} points. First point: {points.First()}, Last point: {points.Last()}"
                     );
 
@@ -2411,7 +2616,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                     using (var path = new System.Drawing.Drawing2D.GraphicsPath())
                     {
                         path.AddCurve(points.ToArray());
-                        Debug.WriteLine(
+                        DebugWrite.Line(
                             $"AudioVisualizerEngine.DrawAurora - Band {band}: Curve added to path with {points.Count} points."
                         );
 
@@ -2420,7 +2625,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                             path.AddLine(points.Last(), new PointF(_width, _height));
                             path.AddLine(new PointF(_width, _height), new PointF(0, _height));
                             path.AddLine(new PointF(0, _height), points.First());
-                            Debug.WriteLine(
+                            DebugWrite.Line(
                                 $"AudioVisualizerEngine.DrawAurora - Band {band}: Path closed for filling."
                             );
                         }
@@ -2456,7 +2661,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                                 )
                                 {
                                     g.FillPath(brush, path);
-                                    Debug.WriteLine(
+                                    DebugWrite.Line(
                                         $"AudioVisualizerEngine.DrawAurora - Band {band}: Path filled with gradient. Intensity: {intensity}, TopColor: {topColor}"
                                     );
                                 }
@@ -2478,17 +2683,17 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                 }
                 else
                 {
-                    Debug.WriteLine(
+                    DebugWrite.Line(
                         $"AudioVisualizerEngine.DrawAurora - Band {band}: Not enough points to draw curve ({points.Count})."
                     );
                 }
             }
-            Debug.WriteLine("AudioVisualizerEngine.DrawAurora - Finished drawing aurora bands.");
+            DebugWrite.Line("AudioVisualizerEngine.DrawAurora - Finished drawing aurora bands.");
         }
 
         private void InitializeParticles(int count)
         {
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AudioVisualizerEngine.InitializeParticles - Initializing {count} particles."
             );
             _particles.Clear();
@@ -2505,18 +2710,18 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                 };
                 _particles.Add(p);
                 if (i < 3)
-                    Debug.WriteLine(
+                    DebugWrite.Line(
                         $"AudioVisualizerEngine.InitializeParticles - Particle {i}: X={p.X}, Y={p.Y}, VX={p.VX}, VY={p.VY}, Life={p.Life}, Size={p.Size}"
                     );
             }
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AudioVisualizerEngine.InitializeParticles - {_particles.Count} particles initialized."
             );
         }
 
         private Color HSVtoRGB(float h, float s, float v)
         {
-            // Debug.WriteLine($"AudioVisualizerEngine.HSVtoRGB - Input H: {h}, S: {s}, V: {v}");
+            //DebugWrite.Line($"AudioVisualizerEngine.HSVtoRGB - Input H: {h}, S: {s}, V: {v}");
             h = h - (float)Math.Floor(h); // Ensure h is [0,1)
             s = Math.Max(0f, Math.Min(1f, s)); // Clamp s to [0,1]
             v = Math.Max(0f, Math.Min(1f, v)); // Clamp v to [0,1]
@@ -2574,27 +2779,27 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                 Math.Max(0, Math.Min(255, gr)),
                 Math.Max(0, Math.Min(255, b))
             );
-            // Debug.WriteLine($"AudioVisualizerEngine.HSVtoRGB - Output RGB: {result}");
+            //DebugWrite.Line($"AudioVisualizerEngine.HSVtoRGB - Output RGB: {result}");
             return result;
         }
 
         private float Lerp(float a, float b, float t)
         {
-            // Debug.WriteLine($"AudioVisualizerEngine.Lerp - a: {a}, b: {b}, t: {t}");
+            //DebugWrite.Line($"AudioVisualizerEngine.Lerp - a: {a}, b: {b}, t: {t}");
             float result = a + (b - a) * t;
-            // Debug.WriteLine($"AudioVisualizerEngine.Lerp - result: {result}");
+            //DebugWrite.Line($"AudioVisualizerEngine.Lerp - result: {result}");
             return result;
         }
 
         private double GetAudioDuration(string mp3Path)
         {
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AudioVisualizerEngine.GetAudioDuration - Getting duration for: {mp3Path}"
             );
             using (var reader = new Mp3FileReader(mp3Path))
             {
                 double duration = reader.TotalTime.TotalSeconds;
-                Debug.WriteLine(
+                DebugWrite.Line(
                     $"AudioVisualizerEngine.GetAudioDuration - Duration: {duration} seconds."
                 );
                 return duration;
@@ -2609,7 +2814,7 @@ namespace YoutubeDownloader.Core.AudioVisualisation
             );
             string finalOutputPath = videoPath; // Original video path will be replaced
 
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AudioVisualizerEngine.MergeAudioVideo - Merging Audio: {audioPath} and Video: {videoPath}. Temp Output: {tempOutputPath}"
             );
 
@@ -2627,41 +2832,41 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                 },
             };
 
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AudioVisualizerEngine.MergeAudioVideo - FFmpeg arguments: {process.StartInfo.Arguments}"
             );
 
             process.OutputDataReceived += (sender, args) =>
-                Debug.WriteLine($"FFmpeg Output: {args.Data}");
+                DebugWrite.Line($"FFmpeg Output: {args.Data}");
             process.ErrorDataReceived += (sender, args) =>
-                Debug.WriteLine($"FFmpeg Error: {args.Data}");
+                DebugWrite.Line($"FFmpeg Error: {args.Data}");
 
             process.Start();
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
 
-            Debug.WriteLine(
+            DebugWrite.Line(
                 "AudioVisualizerEngine.MergeAudioVideo - FFmpeg process started. Waiting for exit..."
             );
             await process.WaitForExitAsync(); // Use the new C# 8.0 method if available, otherwise use Task.Run for WaitForExit
-            Debug.WriteLine(
+            DebugWrite.Line(
                 $"AudioVisualizerEngine.MergeAudioVideo - FFmpeg process exited with code: {process.ExitCode}."
             );
 
             if (process.ExitCode == 0 && File.Exists(tempOutputPath))
             {
-                Debug.WriteLine(
+                DebugWrite.Line(
                     $"AudioVisualizerEngine.MergeAudioVideo - Merge successful. Replacing original video."
                 );
                 File.Delete(finalOutputPath); // Delete the video-only file
                 File.Move(tempOutputPath, finalOutputPath); // Rename temp file to original name
-                Debug.WriteLine(
+                DebugWrite.Line(
                     $"AudioVisualizerEngine.MergeAudioVideo - Original video replaced with merged version: {finalOutputPath}"
                 );
             }
             else
             {
-                Debug.WriteLine(
+                DebugWrite.Line(
                     $"AudioVisualizerEngine.MergeAudioVideo - Merge failed or temp output file not found. Exit code: {process.ExitCode}. Temp file exists: {File.Exists(tempOutputPath)}"
                 );
                 if (File.Exists(tempOutputPath))
@@ -2669,13 +2874,13 @@ namespace YoutubeDownloader.Core.AudioVisualisation
                     try
                     {
                         File.Delete(tempOutputPath);
-                        Debug.WriteLine(
+                        DebugWrite.Line(
                             "AudioVisualizerEngine.MergeAudioVideo - Cleaned up temp output file."
                         );
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine(
+                        DebugWrite.Line(
                             $"AudioVisualizerEngine.MergeAudioVideo - Error deleting temp file: {ex.Message}"
                         );
                     }
